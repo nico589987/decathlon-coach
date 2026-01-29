@@ -1,0 +1,45 @@
+import { NextResponse } from "next/server";
+
+export async function POST(req: Request) {
+  const { messages, feedbackSummary } = await req.json();
+
+  const system = `
+Tu es un coach sportif professionnel adaptatif.
+
+Tu tiens compte :
+- des objectifs
+- du niveau
+- du ressenti des séances passées
+
+Feedback récent utilisateur :
+${feedbackSummary || "aucun"}
+
+Règles :
+- adapte la difficulté
+- varie les séances
+- pose des questions si info manquante
+- format clair et motivant
+`;
+
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1-mini",
+      temperature: 0.7,
+      messages: [
+        { role: "system", content: system },
+        ...messages,
+      ],
+    }),
+  });
+
+  const data = await r.json();
+
+  return NextResponse.json({
+    content: data.choices?.[0]?.message?.content || "",
+  });
+}
