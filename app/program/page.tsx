@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -44,38 +44,38 @@ function parseSessionItems(content: string) {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  const bulletLines = lines.filter((line) => /^[-•]/.test(line));
+  const bulletLines = lines.filter((line) => /^[-â€¢]/.test(line));
   const source = bulletLines.length > 0 ? bulletLines : lines;
 
   return source
-    .map((line) => line.replace(/^[-•]\s?/, ""))
+    .map((line) => line.replace(/^[-â€¢]\s?/, ""))
     .filter((line) => line.length > 0);
 }
 
 
 function emojiForItem(text: string) {
   const t = text.toLowerCase();
-  if (t.includes("�chauffement")) return "??";
-  if (t.includes("retour au calme") || t.includes("�tirements")) return "??";
-  if (t.includes("s�ries")) return "??";
+  if (t.includes("échauffement")) return "??";
+  if (t.includes("retour au calme") || t.includes("étirements")) return "??";
+  if (t.includes("séries")) return "??";
   if (t.includes("course") || t.includes("cardio")) return "??";
   if (t.includes("gainage")) return "??";
   if (t.includes("squat") || t.includes("fente")) return "??";
   if (t.includes("pompe") || t.includes("renforcement")) return "???";
-  return "�";
+  return "•";
 }
 
 
 function tagForItem(text: string) {
   const t = text.toLowerCase();
-  if (t.includes("�chauffement")) {
-    return { label: "�chauffement", color: "#f59e0b", bg: "#fef3c7" };
+  if (t.includes("échauffement")) {
+    return { label: "Échauffement", color: "#f59e0b", bg: "#fef3c7" };
   }
-  if (t.includes("retour au calme") || t.includes("�tirements")) {
+  if (t.includes("retour au calme") || t.includes("étirements")) {
     return { label: "Retour au calme", color: "#0f766e", bg: "#ccfbf1" };
   }
-  if (t.includes("s�ries")) {
-    return { label: "S�ries", color: "#1d4ed8", bg: "#dbeafe" };
+  if (t.includes("séries")) {
+    return { label: "Séries", color: "#1d4ed8", bg: "#dbeafe" };
   }
   if (t.includes("course") || t.includes("cardio")) {
     return { label: "Cardio", color: "#15803d", bg: "#dcfce7" };
@@ -93,7 +93,7 @@ function tagForItem(text: string) {
 }function highlightItem(text: string) {
   const parts: ReactNode[] = [];
   const regex =
-    /(\d+\s*(?:min|minutes|sec|secondes|s)|\d+\s*(?:s�ries?|reps?)|�chauffement|retour au calme|�tirements|gainage|squats?|fentes?|pompes?|crunchs?|course)/gi;
+    /(\d+\s*(?:min|minutes|sec|secondes|s)|\d+\s*(?:séries?|reps?)|échauffement|retour au calme|étirements|gainage|squats?|fentes?|pompes?|crunchs?|course)/gi;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -220,12 +220,12 @@ function tagForItem(text: string) {
             boxShadow: "0 8px 18px rgba(60,70,184,0.35)",
           }}
         >
-          📅
+          ðŸ“…
         </div>
         <div>
           <h1 style={{ margin: 0 }}>Mon Programme</h1>
           <div style={{ color: "#475569", fontSize: 13 }}>
-            Tes séances planifiées et suivies
+            Tes sÃ©ances planifiÃ©es et suivies
           </div>
         </div>
         {totalCount > 0 && (
@@ -241,7 +241,7 @@ function tagForItem(text: string) {
               fontWeight: 700,
             }}
           >
-            {doneCount}/{totalCount} séances faites
+            {doneCount}/{totalCount} sÃ©ances faites
           </div>
         )}
       </div>
@@ -304,7 +304,7 @@ function tagForItem(text: string) {
 
       {sessions.length === 0 && (
         <p style={{ opacity: 0.6 }}>
-          Aucune séance ajoutée pour l’instant.
+          Aucune sÃ©ance ajoutÃ©e pour lâ€™instant.
         </p>
       )}
 
@@ -448,7 +448,7 @@ function tagForItem(text: string) {
                 boxShadow: "0 6px 12px rgba(60,70,184,0.3)",
               }}
             >
-              ✓ Marquer effectuée
+              âœ“ Marquer effectuÃ©e
             </button>
           )}
 
@@ -465,7 +465,7 @@ function tagForItem(text: string) {
                   padding: "4px 10px",
                 }}
               >
-                ✅ Fait — ressenti : {s.feedback}
+                âœ… Fait â€” ressenti : {s.feedback}
               </span>
 
               <button
@@ -507,13 +507,13 @@ function tagForItem(text: string) {
               boxShadow: "0 18px 40px rgba(15,23,42,0.25)",
             }}
           >
-            <h3 style={{ marginTop: 0 }}>Comment était la séance ?</h3>
+            <h3 style={{ marginTop: 0 }}>Comment Ã©tait la sÃ©ance ?</h3>
 
             {[
-              ["facile", "🙂 Facile"],
-              ["ok", "😐 Correcte"],
-              ["dur", "😵 Difficile"],
-              ["trop_dur", "🔥 Trop dure"],
+              ["facile", "ðŸ™‚ Facile"],
+              ["ok", "ðŸ˜ Correcte"],
+              ["dur", "ðŸ˜µ Difficile"],
+              ["trop_dur", "ðŸ”¥ Trop dure"],
             ].map(([k, label]) => (
               <button
                 key={k}
@@ -545,6 +545,7 @@ function tagForItem(text: string) {
     </div>
   );
 }
+
 
 
 
