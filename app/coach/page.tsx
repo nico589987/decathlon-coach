@@ -71,12 +71,12 @@ export default function CoachPage() {
   // ======================
 
   function extractRealSessions(text: string): SessionDraft[] {
-    const blocks = text.split(/\n(?=Séance\s*\d+)/i);
+    const blocks = text.split(/\n(?=(?:\*\*)?(?:S\u00e9ance|Seance)\s*\d+)/i);
     const sessions: SessionDraft[] = [];
 
     for (const block of blocks) {
-      if (!/^Séance\s*\d+/i.test(block.trim())) continue;
-      if (block.length < 120) continue;
+      if (!/^(?:\*\*)?(?:S\u00e9ance|Seance)\s*\d+/i.test(block.trim())) continue;
+      if (block.length < 60) continue;
 
       sessions.push({
         id: crypto.randomUUID(),
@@ -294,3 +294,7 @@ export default function CoachPage() {
     </div>
   );
 }
+
+
+
+
