@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type KeyboardEvent } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 type Role = "user" | "assistant";
@@ -301,8 +302,7 @@ export default function CoachPage() {
 
   function renderCoachContent(content: string) {
     const parsed = parseCoachMessage(content);
-    const lines = content.split("\n");
-    const nodes: JSX.Element[] = [];
+    const nodes: ReactNode[] = [];
 
     const titleTextStyle: React.CSSProperties = {
       fontWeight: 700,
