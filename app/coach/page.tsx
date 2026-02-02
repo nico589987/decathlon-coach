@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type KeyboardEvent } from "react";
+import { useRouter } from "next/navigation";
 
 type Role = "user" | "assistant";
 
@@ -23,6 +24,7 @@ export default function CoachPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingSessions, setPendingSessions] = useState<SessionDraft[]>([]);
+  const router = useRouter();
 
   // ======================
   // Load saved conversation
@@ -178,6 +180,7 @@ export default function CoachPage() {
     );
 
     setPendingSessions([]);
+    router.push("/program");
   }
 
   // ======================
@@ -257,7 +260,7 @@ export default function CoachPage() {
             fontWeight: 600,
           }}
         >
-          Ajouter ces séances au programme
+          Ajouter ces séances
         </button>
       )}
 
