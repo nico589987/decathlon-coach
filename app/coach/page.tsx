@@ -1,86 +1,119 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, type KeyboardEvent } from "react";
+
+type Role = "user" | "assistant";
 
 type Msg = {
-  role: "user" | "assistant";
+  role: Role;
   content: string;
 };
 
-type SessionBlock = {
+type SessionDraft = {
   id: string;
   title: string;
   content: string;
+  products: string[];
 };
 
-function isTrainingContent(text: string) {
-  const t = text.toLowerCase();
-
-  const markers = [
-    "échauffement",
-    "circuit",
-    "séries",
-    "répétitions",
-    "tours",
-    "repos",
-    "retour au calme",
-  ];
-
-  return markers.filter(m => t.includes(m)).length >= 2;
-}
-
-function extractRealSessions(text: string): SessionBlock[] {
-  const parts = text.split(/Séance\s+\d+/i);
-
-  const matches = text.match(/Séance\s+\d+/gi) || [];
-
-  const sessions: SessionBlock[] = [];
-
-  for (let i = 1; i < parts.length; i++) {
-    const body = parts[i].trim();
-
-    if (!isTrainingContent(body)) continue; // ✅ filtre critique
-
-    sessions.push({
-      id: `sess_${Date.now()}_${i}`,
-      title: matches[i - 1],
-      content: body,
-    });
-  }
-
-  return sessions;
-}
+const STORAGE_KEY = "coach_messages_v1";
 
 export default function CoachPage() {
-  const router = useRouter();
-
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [pendingSessions, setPendingSessions] = useState<SessionBlock[]>([]);
+  const [pendingSessions, setPendingSessions] = useState<SessionDraft[]>([]);
+
+  // ======================
+  // Load saved conversation
+  // ======================
 
   useEffect(() => {
-    const saved = localStorage.getItem("coach_messages");
-    if (saved) setMessages(JSON.parse(saved));
-    else
-      setMessages([
-        {
-          role: "assistant",
-          content: "Salut 👋 Quel est ton objectif ?",
-        },
-      ]);
+    const raw = localStorage.getItem(STORAGE_KEY);
+
+    if (raw) {
+      setMessages(JSON.parse(raw));
+      return;
+    }
+
+    const init: Msg[] = [
+      {
+        role: "assistant",
+        content:
+          "Salut 👋 Je suis ton coach.\nOn construit ton programme ensemble.\n\n🎯 Quel est ton objectif ?",
+      },
+    ];
+
+    setMessages(init);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
   }, []);
 
-  function persist(msgs: Msg[]) {
-    setMessages(msgs);
-    localStorage.setItem("coach_messages", JSON.stringify(msgs));
+  function persist(list: Msg[]) {
+    setMessages(list);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   }
 
-  async function send() {
-    if (!input.trim()) return;
+  function newConversation() {
+    const init: Msg[] = [
+      {
+        role: "assistant",
+        content: "Nouvelle discussion 👍 Quel est ton objectif sportif ?",
+      },
+    ];
+    setPendingSessions([]);
+    persist(init);
+  }
 
-    const newMsgs = [...messages, { role: "user", content: input }];
+  // ======================
+  // Extract sessions safely
+  // ======================
+
+  function extractRealSessions(text: string): SessionDraft[] {
+    const blocks = text.split(/\n(?=Séance\s*\d+)/i);
+    const sessions: SessionDraft[] = [];
+
+    for (const block of blocks) {
+      if (!/^Séance\s*\d+/i.test(block.trim())) continue;
+      if (block.length < 120) continue;
+
+      sessions.push({
+        id: crypto.randomUUID(),
+        title: block.split("\n")[0].replace(/\*\*/g, ""),
+        content: block.trim(),
+        products: suggestProducts(block),
+      });
+    }
+
+    return sessions;
+  }
+
+  function suggestProducts(text: string): string[] {
+    const t = text.toLowerCase();
+    const out: string[] = [];
+
+    if (t.includes("gainage")) out.push("Tapis fitness");
+    if (t.includes("halt")) out.push("Haltères");
+    if (t.includes("élastique")) out.push("Bandes élastiques");
+    if (t.includes("corde")) out.push("Corde à sauter");
+    if (t.includes("course")) out.push("Chaussures running");
+
+    return out;
+  }
+
+  // ======================
+  // SEND MESSAGE (TS FIX HERE)
+  // ======================
+
+  async function send() {
+    if (!input.trim() || loading) return;
+
+    const userMsg: Msg = {
+      role: "user",
+      content: input,
+    };
+
+    const newMsgs: Msg[] = [...messages, userMsg]; // ✅ typed array
+
     persist(newMsgs);
     setInput("");
     setLoading(true);
@@ -93,98 +126,126 @@ export default function CoachPage() {
       });
 
       const data = await res.json();
-      const reply = data.content;
+      const reply: string = data.content || "";
 
-      const updated = [...newMsgs, { role: "assistant", content: reply }];
+      const assistantMsg: Msg = {
+        role: "assistant",
+        content: reply,
+      };
+
+      const updated: Msg[] = [...newMsgs, assistantMsg]; // ✅ typed array
+
       persist(updated);
 
-      // ✅ extraction robuste
       const sessions = extractRealSessions(reply);
       setPendingSessions(sessions);
-
     } catch {
-      persist([
-        ...newMsgs,
-        { role: "assistant", content: "Erreur IA." },
-      ]);
+      const errMsg: Msg = {
+        role: "assistant",
+        content: "Oups — erreur IA.",
+      };
+
+      const updated: Msg[] = [...newMsgs, errMsg];
+      persist(updated);
     }
 
     setLoading(false);
   }
 
-  function addSessions() {
-    if (pendingSessions.length === 0) return;
+  function onKey(e: KeyboardEvent) {
+    if (e.key === "Enter") send();
+  }
 
-    const prev = JSON.parse(localStorage.getItem("program_sessions") || "[]");
+  // ======================
+  // Add to program
+  // ======================
+
+  function addSessionsToProgram() {
+    const raw = localStorage.getItem("program_sessions");
+    const existing = raw ? JSON.parse(raw) : [];
+
+    const formatted = pendingSessions.map((s) => ({
+      id: s.id,
+      title: s.title,
+      content: s.content,
+      done: false,
+      products: s.products,
+    }));
 
     localStorage.setItem(
       "program_sessions",
-      JSON.stringify([...prev, ...pendingSessions])
+      JSON.stringify([...existing, ...formatted])
     );
 
-    alert("Séances ajoutées ✅");
     setPendingSessions([]);
   }
 
-  function newConversation() {
-    localStorage.removeItem("coach_messages");
-    setMessages([
-      { role: "assistant", content: "Nouvelle discussion 👋 Objectif ?" },
-    ]);
-    setPendingSessions([]);
-  }
+  // ======================
+  // UI
+  // ======================
 
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h1>Coach IA</h1>
+
         <button
           onClick={newConversation}
           style={{
             background: "#e5e7eb",
             border: "none",
+            borderRadius: 10,
             padding: "8px 12px",
-            borderRadius: 8,
             cursor: "pointer",
+            fontSize: 13,
           }}
         >
           Nouvelle conversation
         </button>
       </div>
 
-      <div style={{
-        border: "1px solid #ddd",
-        borderRadius: 16,
-        padding: 20,
-        height: 500,
-        overflowY: "auto",
-        background: "#f7f8fb",
-      }}>
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: 16,
+          padding: 20,
+          height: 520,
+          overflowY: "auto",
+          background: "#f8fafc",
+        }}
+      >
         {messages.map((m, i) => (
-          <div key={i} style={{
-            display: "flex",
-            justifyContent: m.role === "user" ? "flex-end" : "flex-start",
-            marginBottom: 14,
-          }}>
-            <div style={{
-              padding: 14,
-              borderRadius: 14,
-              maxWidth: "70%",
-              background: m.role === "user" ? "#4f46e5" : "#e5e7eb",
-              color: m.role === "user" ? "white" : "black",
-              whiteSpace: "pre-wrap",
-            }}>
-              <b>{m.role === "user" ? "Toi" : "Coach"}</b><br />
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 14,
+                maxWidth: "75%",
+                background: m.role === "user" ? "#4f46e5" : "#e5e7eb",
+                color: m.role === "user" ? "white" : "black",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              <b>{m.role === "user" ? "Toi" : "Coach"}</b>
+              <br />
               {m.content}
             </div>
           </div>
         ))}
+
         {loading && <div>Coach écrit…</div>}
       </div>
 
       {pendingSessions.length > 0 && (
         <button
-          onClick={addSessions}
+          onClick={addSessionsToProgram}
           style={{
             marginTop: 16,
             background: "#16a34a",
@@ -192,8 +253,8 @@ export default function CoachPage() {
             border: "none",
             borderRadius: 12,
             padding: "12px 18px",
-            fontWeight: 600,
             cursor: "pointer",
+            fontWeight: 600,
           }}
         >
           Ajouter ces séances au programme
@@ -204,18 +265,26 @@ export default function CoachPage() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
+          onKeyDown={onKey}
           placeholder="Écris ton message..."
-          style={{ flex: 1, padding: 14, borderRadius: 12, border: "1px solid #ccc" }}
+          style={{
+            flex: 1,
+            padding: 14,
+            borderRadius: 12,
+            border: "1px solid #ccc",
+          }}
         />
-        <button onClick={send}
+        <button
+          onClick={send}
           style={{
             padding: "14px 20px",
             borderRadius: 12,
             background: "#4f46e5",
             color: "white",
             border: "none",
-          }}>
+            cursor: "pointer",
+          }}
+        >
           Envoyer
         </button>
       </div>
