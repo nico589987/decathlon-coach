@@ -205,12 +205,239 @@ export default function CoachPage() {
     router.push("/program");
   }
 
+  function addSingleSessionToProgram(session: SessionDraft) {
+    const raw = localStorage.getItem("program_sessions");
+    const existing = raw ? JSON.parse(raw) : [];
+
+    const next = [
+      ...existing.filter((s: SessionDraft) => s.id !== session.id),
+      {
+        id: session.id,
+        title: session.title,
+        content: session.content,
+        done: false,
+        products: session.products,
+      },
+    ];
+
+    localStorage.setItem("program_sessions", JSON.stringify(next));
+    setPendingSessions((prev) => prev.filter((s) => s.id !== session.id));
+  }
+
   // ======================
   // UI
   // ======================
 
+  function emojiForLine(text: string) {
+    const t = text.toLowerCase();
+    if (t.includes("échauffement")) return "🔥";
+    if (t.includes("retour au calme") || t.includes("étirements")) return "🧘";
+    if (t.includes("séries")) return "🔁";
+    if (t.includes("course")) return "🏃";
+    if (t.includes("renforcement")) return "🏋️";
+    return "•";
+  }
+
+  function lineAccent(text: string) {
+    const t = text.toLowerCase();
+    if (t.includes("échauffement")) return "#f59e0b";
+    if (t.includes("retour au calme") || t.includes("étirements")) return "#14b8a6";
+    if (t.includes("course") || t.includes("cardio")) return "#22c55e";
+    if (t.includes("séries") || t.includes("renforcement") || t.includes("gainage")) {
+      return "#3C46B8";
+    }
+    return "#94a3b8";
+  }
+
+  function normalizeSessionTitle(value: string) {
+    return value
+      .replace(/\*\*/g, "")
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  function parseCoachMessage(content: string) {
+    const lines = content.split("\n");
+    const intro: string[] = [];
+    const outro: string[] = [];
+    const sessions: { title: string; items: string[] }[] = [];
+    let current: { title: string; items: string[] } | null = null;
+    let seenSession = false;
+
+    lines.forEach((raw) => {
+      const line = raw.trim();
+      if (!line) return;
+
+      const titleMatch = line.match(/^\*\*(.+)\*\*$/);
+      const sessionMatch = line.match(/^(?:\*\*)?(?:S\u00e9ance|Seance)\s*\d+/i);
+      if (titleMatch && sessionMatch) {
+        if (current) sessions.push(current);
+        current = { title: titleMatch[1], items: [] };
+        seenSession = true;
+        return;
+      }
+
+      if (current) {
+        if (/^[-•]/.test(line)) {
+          current.items.push(line.replace(/^[-•]\s?/, ""));
+          return;
+        }
+        sessions.push(current);
+        current = null;
+        outro.push(line);
+        return;
+      }
+
+      if (seenSession) outro.push(line);
+      else intro.push(line);
+    });
+
+    if (current) sessions.push(current);
+
+    return { intro, sessions, outro };
+  }
+
+  function renderCoachContent(content: string) {
+    const parsed = parseCoachMessage(content);
+    const lines = content.split("\n");
+    const nodes: JSX.Element[] = [];
+
+    const titleTextStyle: React.CSSProperties = {
+      fontWeight: 700,
+      marginTop: 12,
+      marginBottom: 6,
+      fontSize: 16,
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+    };
+
+    const badgeStyle: React.CSSProperties = {
+      background: "#eef2ff",
+      color: "#3730a3",
+      border: "1px solid #c7d2fe",
+      borderRadius: 999,
+      padding: "2px 10px",
+      fontSize: 12,
+      fontWeight: 700,
+      letterSpacing: 0.2,
+    };
+
+    const pendingMap = new Map(
+      pendingSessions.map((s) => [normalizeSessionTitle(s.title), s])
+    );
+
+    parsed.intro.forEach((line, idx) => {
+      nodes.push(
+        <div key={`intro-${idx}`} style={{ marginTop: 6, lineHeight: 1.5 }}>
+          {line}
+        </div>
+      );
+    });
+
+    parsed.sessions.forEach((session, idx) => {
+      const titleText = session.title;
+      const parts = titleText.split(":");
+      const sessionLabel = parts[0]?.trim();
+      const sessionTitle = parts.slice(1).join(":").trim();
+      const matched = pendingMap.get(normalizeSessionTitle(session.title));
+
+      nodes.push(
+        <div
+          key={`card-${idx}`}
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 12,
+            background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 6px 16px rgba(15,23,42,0.08)",
+            borderLeft: "4px solid #3C46B8",
+            animation: "coachCardIn 420ms ease-out both",
+          }}
+        >
+          <div
+            style={{
+              height: 6,
+              borderRadius: 999,
+              background: "linear-gradient(90deg, #3C46B8 0%, #2563eb 100%)",
+              marginBottom: 10,
+            }}
+          />
+          <div style={titleTextStyle}>
+            <span style={{ fontSize: 18 }}>🏁</span>
+            {sessionLabel && <span style={badgeStyle}>{sessionLabel}</span>}
+            <span>{sessionTitle || titleText}</span>
+          </div>
+
+          <div style={{ marginTop: 8 }}>
+            {session.items.map((item, itemIdx) => (
+              <div
+                key={`card-item-${idx}-${itemIdx}`}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  marginTop: 6,
+                }}
+              >
+                <span style={{ width: 20, color: lineAccent(item) }}>
+                  {emojiForLine(item)}
+                </span>
+                <span style={{ lineHeight: 1.5 }}>{item}</span>
+              </div>
+            ))}
+          </div>
+
+          {matched && (
+            <button
+              onClick={() => addSingleSessionToProgram(matched)}
+              style={{
+                marginTop: 10,
+                background: "#3C46B8",
+                color: "white",
+                border: "none",
+                borderRadius: 10,
+                padding: "6px 12px",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              Ajouter cette séance
+            </button>
+          )}
+        </div>
+      );
+    });
+
+    parsed.outro.forEach((line, idx) => {
+      nodes.push(
+        <div key={`outro-${idx}`} style={{ marginTop: 8, lineHeight: 1.5 }}>
+          {line}
+        </div>
+      );
+    });
+
+    return nodes;
+  }
+
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: "auto" }}>
+      <style jsx global>{`
+        @keyframes coachCardIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h1>Coach IA</h1>
 
@@ -253,14 +480,30 @@ export default function CoachPage() {
                 padding: 14,
                 borderRadius: 14,
                 maxWidth: "75%",
-                background: m.role === "user" ? "#4f46e5" : "#e5e7eb",
+                background:
+                  m.role === "user"
+                    ? "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)"
+                    : "linear-gradient(180deg, #f1f5f9 0%, #eef2ff 100%)",
                 color: m.role === "user" ? "white" : "black",
                 whiteSpace: "pre-wrap",
+                border: m.role === "user" ? "none" : "1px solid #e2e8f0",
+                boxShadow:
+                  m.role === "user"
+                    ? "0 6px 16px rgba(79,70,229,0.25)"
+                    : "0 6px 16px rgba(15,23,42,0.08)",
               }}
             >
-              <b>{m.role === "user" ? "Toi" : "Coach"}</b>
+              <b style={{ letterSpacing: 0.2 }}>
+                {m.role === "user" ? "Toi" : "Coach"}
+              </b>
               <br />
-              {m.content}
+              {m.role === "assistant" ? (
+                <div style={{ marginTop: 6 }}>
+                  {renderCoachContent(m.content)}
+                </div>
+              ) : (
+                m.content
+              )}
             </div>
           </div>
         ))}
