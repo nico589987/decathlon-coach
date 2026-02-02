@@ -236,7 +236,7 @@ export default function ProgramPage() {
             boxShadow: "0 8px 18px rgba(60,70,184,0.35)",
           }}
         >
-          P
+          {"\uD83D\uDCD8"}
         </div>
         <div>
           <h1 style={{ margin: 0 }}>Mon Programme</h1>
