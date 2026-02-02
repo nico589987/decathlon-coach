@@ -54,6 +54,7 @@ function parseSessionItems(content: string) {
 export default function ProgramPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [feedbackTarget, setFeedbackTarget] = useState<Session | null>(null);
+  const [lastCompletedId, setLastCompletedId] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("program_sessions");
@@ -80,7 +81,14 @@ export default function ProgramPage() {
 
     save(updated);
     setFeedbackTarget(null);
+    setLastCompletedId(feedbackTarget.id);
   }
+
+  useEffect(() => {
+    if (!lastCompletedId) return;
+    const timer = setTimeout(() => setLastCompletedId(null), 700);
+    return () => clearTimeout(timer);
+  }, [lastCompletedId]);
 
   function resetSession(id: string) {
     const updated = sessions.map((s) =>
@@ -109,9 +117,122 @@ export default function ProgramPage() {
       .filter(Boolean) as { id: string; label: string }[];
   }
 
+  const doneCount = sessions.filter((s) => s.done).length;
+  const totalCount = sessions.length;
+
   return (
-    <div style={{ padding: 24, maxWidth: 900, margin: "auto" }}>
-      <h1>📅 Mon Programme</h1>
+    <div
+      style={{
+        padding: 24,
+        maxWidth: 980,
+        margin: "auto",
+        background:
+          "radial-gradient(1200px 400px at 10% -10%, rgba(60,70,184,0.12) 0%, rgba(248,250,252,0) 70%), radial-gradient(900px 400px at 90% -20%, rgba(37,99,235,0.12) 0%, rgba(248,250,252,0) 70%)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: "linear-gradient(135deg, #3C46B8 0%, #2563eb 100%)",
+            display: "grid",
+            placeItems: "center",
+            color: "white",
+            fontSize: 20,
+            fontWeight: 700,
+            boxShadow: "0 8px 18px rgba(60,70,184,0.35)",
+          }}
+        >
+          📅
+        </div>
+        <div>
+          <h1 style={{ margin: 0 }}>Mon Programme</h1>
+          <div style={{ color: "#475569", fontSize: 13 }}>
+            Tes séances planifiées et suivies
+          </div>
+        </div>
+        {totalCount > 0 && (
+          <div
+            style={{
+              marginLeft: "auto",
+              background: "#eef2ff",
+              color: "#3730a3",
+              border: "1px solid #c7d2fe",
+              borderRadius: 999,
+              padding: "6px 12px",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            {doneCount}/{totalCount} séances faites
+          </div>
+        )}
+      </div>
+
+      {totalCount > 0 && (
+        <div
+          style={{
+            height: 10,
+            borderRadius: 999,
+            background: "#e2e8f0",
+            overflow: "hidden",
+            marginBottom: 18,
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${Math.round((doneCount / totalCount) * 100)}%`,
+              background:
+                "linear-gradient(90deg, #3C46B8 0%, #2563eb 60%, #0ea5e9 100%)",
+              transition: "width 300ms ease",
+            }}
+          />
+        </div>
+      )}
+
+      <style jsx global>{`
+        .program-card {
+          transition: transform 180ms ease, box-shadow 180ms ease;
+        }
+        .program-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 14px 26px rgba(15, 23, 42, 0.12);
+        }
+        .program-chip {
+          transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+        .program-chip:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 12px rgba(30, 64, 175, 0.2);
+        }
+        .program-done {
+          animation: donePulse 600ms ease;
+        }
+        @keyframes donePulse {
+          0% {
+            transform: scale(0.98);
+            box-shadow: 0 0 0 rgba(34, 197, 94, 0.0);
+          }
+          60% {
+            transform: scale(1.01);
+            box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.18);
+          }
+          100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 rgba(34, 197, 94, 0.0);
+          }
+        }
+      `}</style>
 
       {sessions.length === 0 && (
         <p style={{ opacity: 0.6 }}>
@@ -122,15 +243,27 @@ export default function ProgramPage() {
       {sessions.map((s) => (
         <div
           key={s.id}
+          className="program-card"
           style={{
-            background: "linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%)",
-            borderRadius: 16,
+            background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+            borderRadius: 18,
             padding: 18,
-            marginBottom: 16,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+            marginBottom: 18,
+            boxShadow: "0 10px 20px rgba(15,23,42,0.08)",
             position: "relative",
+            border: "1px solid #e2e8f0",
+            overflow: "hidden",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              inset: "0 0 auto 0",
+              height: 6,
+              background:
+                "linear-gradient(90deg, #3C46B8 0%, #2563eb 45%, #0ea5e9 100%)",
+            }}
+          />
           {/* bouton supprimer */}
           <button
             onClick={() => deleteSession(s.id)}
@@ -138,8 +271,8 @@ export default function ProgramPage() {
               position: "absolute",
               top: 12,
               right: 12,
-              background: "#fee2e2",
-              color: "#b91c1c",
+              background: "#ffe4e6",
+              color: "#be123c",
               border: "none",
               borderRadius: 8,
               padding: "4px 8px",
@@ -150,7 +283,7 @@ export default function ProgramPage() {
             Supprimer
           </button>
 
-          <h3 style={{ marginBottom: 10 }}>{s.title}</h3>
+          <h3 style={{ marginBottom: 10, marginTop: 4 }}>{s.title}</h3>
 
           <ul
             style={{
@@ -169,7 +302,7 @@ export default function ProgramPage() {
 
           {s.products && s.products.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>
                 Produits recommandes
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -177,11 +310,12 @@ export default function ProgramPage() {
                   <a
                     key={p.id}
                     href={`/shop/${p.id}`}
+                    className="program-chip"
                     style={{
                       textDecoration: "none",
-                      background: "#ecfeff",
-                      border: "1px solid #a5f3fc",
-                      color: "#0e7490",
+                      background: "#eff6ff",
+                      border: "1px solid #bfdbfe",
+                      color: "#1e40af",
                       borderRadius: 999,
                       padding: "6px 12px",
                       fontSize: 13,
@@ -200,12 +334,14 @@ export default function ProgramPage() {
               onClick={() => markDone(s)}
               style={{
                 marginTop: 12,
-                background: "#4f46e5",
+                background: "linear-gradient(135deg, #3C46B8 0%, #2563eb 100%)",
                 color: "white",
                 border: "none",
-                borderRadius: 10,
+                borderRadius: 12,
                 padding: "8px 14px",
                 cursor: "pointer",
+                fontWeight: 600,
+                boxShadow: "0 6px 12px rgba(60,70,184,0.3)",
               }}
             >
               ✓ Marquer effectuée
@@ -214,7 +350,17 @@ export default function ProgramPage() {
 
           {s.done && (
             <div style={{ marginTop: 10 }}>
-              <span style={{ fontWeight: 600 }}>
+              <span
+                className={s.id === lastCompletedId ? "program-done" : undefined}
+                style={{
+                  fontWeight: 700,
+                  color: "#0f172a",
+                  background: "#dcfce7",
+                  border: "1px solid #86efac",
+                  borderRadius: 999,
+                  padding: "4px 10px",
+                }}
+              >
                 ✅ Fait — ressenti : {s.feedback}
               </span>
 
@@ -222,7 +368,7 @@ export default function ProgramPage() {
                 onClick={() => resetSession(s.id)}
                 style={{
                   marginLeft: 12,
-                  background: "#e5e7eb",
+                  background: "#e2e8f0",
                   border: "none",
                   borderRadius: 8,
                   padding: "6px 10px",
@@ -254,9 +400,10 @@ export default function ProgramPage() {
               borderRadius: 16,
               padding: 24,
               width: 320,
+              boxShadow: "0 18px 40px rgba(15,23,42,0.25)",
             }}
           >
-            <h3>Comment était la séance ?</h3>
+            <h3 style={{ marginTop: 0 }}>Comment était la séance ?</h3>
 
             {[
               ["facile", "🙂 Facile"],
@@ -272,9 +419,9 @@ export default function ProgramPage() {
                   width: "100%",
                   marginTop: 8,
                   padding: 10,
-                  borderRadius: 10,
-                  border: "1px solid #ddd",
-                  background: "#f9fafb",
+                  borderRadius: 12,
+                  border: "1px solid #e2e8f0",
+                  background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
                   cursor: "pointer",
                 }}
               >
@@ -294,3 +441,7 @@ export default function ProgramPage() {
     </div>
   );
 }
+
+
+
+
