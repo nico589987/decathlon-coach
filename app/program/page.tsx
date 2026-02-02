@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 
 type Session = {
   id: string;
@@ -51,7 +52,74 @@ function parseSessionItems(content: string) {
     .filter((line) => line.length > 0);
 }
 
-export default function ProgramPage() {
+
+function emojiForItem(text: string) {
+  const t = text.toLowerCase();
+  if (t.includes("échauffement")) return "??";
+  if (t.includes("retour au calme") || t.includes("étirements")) return "??";
+  if (t.includes("séries")) return "??";
+  if (t.includes("course") || t.includes("cardio")) return "??";
+  if (t.includes("gainage")) return "??";
+  if (t.includes("squat") || t.includes("fente")) return "??";
+  if (t.includes("pompe") || t.includes("renforcement")) return "???";
+  return "•";
+}
+
+
+function tagForItem(text: string) {
+  const t = text.toLowerCase();
+  if (t.includes("échauffement")) {
+    return { label: "Échauffement", color: "#f59e0b", bg: "#fef3c7" };
+  }
+  if (t.includes("retour au calme") || t.includes("étirements")) {
+    return { label: "Retour au calme", color: "#0f766e", bg: "#ccfbf1" };
+  }
+  if (t.includes("séries")) {
+    return { label: "Séries", color: "#1d4ed8", bg: "#dbeafe" };
+  }
+  if (t.includes("course") || t.includes("cardio")) {
+    return { label: "Cardio", color: "#15803d", bg: "#dcfce7" };
+  }
+  if (
+    t.includes("gainage") ||
+    t.includes("squat") ||
+    t.includes("fente") ||
+    t.includes("pompe") ||
+    t.includes("renforcement")
+  ) {
+    return { label: "Renfo", color: "#4338ca", bg: "#e0e7ff" };
+  }
+  return null;
+}function highlightItem(text: string) {
+  const parts: ReactNode[] = [];
+  const regex =
+    /(\d+\s*(?:min|minutes|sec|secondes|s)|\d+\s*(?:séries?|reps?)|échauffement|retour au calme|étirements|gainage|squats?|fentes?|pompes?|crunchs?|course)/gi;
+
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const value = match[0];
+    parts.push(
+      <span
+        key={`${match.index}-${value}`}
+        style={{ fontWeight: 700, color: "#1e293b" }}
+      >
+        {value}
+      </span>
+    );
+    lastIndex = match.index + value.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
+}export default function ProgramPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [feedbackTarget, setFeedbackTarget] = useState<Session | null>(null);
   const [lastCompletedId, setLastCompletedId] = useState<string | null>(null);
@@ -294,8 +362,44 @@ export default function ProgramPage() {
             }}
           >
             {parseSessionItems(s.content).map((item, idx) => (
-              <li key={`${s.id}-${idx}`} style={{ marginBottom: 6 }}>
-                {item}
+              <li
+                key={`${s.id}-${idx}`}
+                style={{
+                  marginBottom: 8,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                }}
+              >
+                <span style={{ width: 20 }}>{emojiForItem(item)}</span>
+                <span style={{ lineHeight: 1.5 }}>
+                  {(() => {
+                    const tag = tagForItem(item);
+                    return (
+                      <>
+                        {tag && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              marginRight: 8,
+                              background: tag.bg,
+                              color: tag.color,
+                              border: `1px solid ${tag.color}33`,
+                            }}
+                          >
+                            {tag.label}
+                          </span>
+                        )}
+                        {highlightItem(item)}
+                      </>
+                    );
+                  })()}
+                </span>
               </li>
             ))}
           </ul>
@@ -441,6 +545,14 @@ export default function ProgramPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
 
 
 
