@@ -70,6 +70,28 @@ export default function CoachPage() {
   // Extract sessions safely
   // ======================
 
+  function trimSessionContent(block: string) {
+    const lines = block.split("\n");
+    const items: string[] = [];
+    let started = false;
+
+    for (let i = 1; i < lines.length; i += 1) {
+      const raw = lines[i].trim();
+      if (!raw) continue;
+
+      if (/^[-•]/.test(raw)) {
+        started = true;
+        items.push(raw.replace(/^[-•]\s?/, "- "));
+        continue;
+      }
+
+      if (started) break;
+    }
+
+    if (items.length === 0) return block.trim();
+    return items.join("\n");
+  }
+
   function extractRealSessions(text: string): SessionDraft[] {
     const blocks = text.split(/\n(?=(?:\*\*)?(?:S\u00e9ance|Seance)\s*\d+)/i);
     const sessions: SessionDraft[] = [];
@@ -81,7 +103,7 @@ export default function CoachPage() {
       sessions.push({
         id: crypto.randomUUID(),
         title: block.split("\n")[0].replace(/\*\*/g, ""),
-        content: block.trim(),
+        content: trimSessionContent(block),
         products: suggestProducts(block),
       });
     }

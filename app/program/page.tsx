@@ -37,6 +37,20 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function parseSessionItems(content: string) {
+  const lines = content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const bulletLines = lines.filter((line) => /^[-•]/.test(line));
+  const source = bulletLines.length > 0 ? bulletLines : lines;
+
+  return source
+    .map((line) => line.replace(/^[-•]\s?/, ""))
+    .filter((line) => line.length > 0);
+}
+
 export default function ProgramPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [feedbackTarget, setFeedbackTarget] = useState<Session | null>(null);
@@ -109,7 +123,7 @@ export default function ProgramPage() {
         <div
           key={s.id}
           style={{
-            background: "#eef2ff",
+            background: "linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%)",
             borderRadius: 16,
             padding: 18,
             marginBottom: 16,
@@ -136,11 +150,22 @@ export default function ProgramPage() {
             Supprimer
           </button>
 
-          <h3 style={{ marginBottom: 8 }}>{s.title}</h3>
+          <h3 style={{ marginBottom: 10 }}>{s.title}</h3>
 
-          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
-            {s.content}
-          </div>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 18,
+              lineHeight: 1.5,
+              color: "#111827",
+            }}
+          >
+            {parseSessionItems(s.content).map((item, idx) => (
+              <li key={`${s.id}-${idx}`} style={{ marginBottom: 6 }}>
+                {item}
+              </li>
+            ))}
+          </ul>
 
           {s.products && s.products.length > 0 && (
             <div style={{ marginTop: 12 }}>
