@@ -83,6 +83,66 @@ function tagForItem(text: string) {
   return null;
 }
 
+function groupSessionItems(items: string[]) {
+  const groups: {
+    key: string;
+    label: string;
+    color: string;
+    bg: string;
+    items: string[];
+  }[] = [];
+
+  const order = [
+    "Échauffement",
+    "Séries",
+    "Renfo",
+    "Cardio",
+    "Retour au calme",
+  ];
+
+  const defaultGroup = {
+    key: "exercices",
+    label: "Exercices",
+    color: "#1e40af",
+    bg: "#eff6ff",
+    items: [] as string[],
+  };
+
+  items.forEach((item) => {
+    const tag = tagForItem(item);
+    if (!tag) {
+      defaultGroup.items.push(item);
+      return;
+    }
+
+    let group = groups.find((g) => g.label === tag.label);
+    if (!group) {
+      group = {
+        key: tag.label.toLowerCase().replace(/\s+/g, "_"),
+        label: tag.label,
+        color: tag.color,
+        bg: tag.bg,
+        items: [],
+      };
+      groups.push(group);
+    }
+    group.items.push(item);
+  });
+
+  if (defaultGroup.items.length > 0) {
+    groups.push(defaultGroup);
+  }
+
+  return groups.sort((a, b) => {
+    const aIndex = order.indexOf(a.label);
+    const bIndex = order.indexOf(b.label);
+    if (aIndex === -1 && bIndex === -1) return 0;
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  });
+}
+
 function highlightItem(text: string) {
   const parts: ReactNode[] = [];
   const regex =
@@ -356,45 +416,42 @@ export default function ProgramPage() {
               color: "#111827",
             }}
           >
-            {parseSessionItems(s.content).map((item, idx) => (
-              <li
-                key={`${s.id}-${idx}`}
-                style={{
-                  marginBottom: 8,
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 8,
-                }}
-              >
-                <span style={{ width: 20 }}>{emojiForItem(item)}</span>
-                <span style={{ lineHeight: 1.5 }}>
-                  {(() => {
-                    const tag = tagForItem(item);
-                    return (
-                      <>
-                        {tag && (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              padding: "2px 8px",
-                              borderRadius: 999,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              marginRight: 8,
-                              background: tag.bg,
-                              color: tag.color,
-                              border: `1px solid ${tag.color}33`,
-                            }}
-                          >
-                            {tag.label}
-                          </span>
-                        )}
+            {groupSessionItems(parseSessionItems(s.content)).map((group) => (
+              <li key={`${s.id}-${group.key}`} style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "3px 10px",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    marginBottom: 6,
+                    background: group.bg,
+                    color: group.color,
+                    border: `1px solid ${group.color}33`,
+                  }}
+                >
+                  {group.label}
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {group.items.map((item, idx) => (
+                    <li
+                      key={`${s.id}-${group.key}-${idx}`}
+                      style={{
+                        marginBottom: 6,
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ width: 20 }}>{emojiForItem(item)}</span>
+                      <span style={{ lineHeight: 1.5 }}>
                         {highlightItem(item)}
-                      </>
-                    );
-                  })()}
-                </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ul>

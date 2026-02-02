@@ -3,9 +3,9 @@
 import { usePathname } from "next/navigation";
 
 const items = [
-  ["/coach", "C", "Coach"],
-  ["/program", "P", "Programme"],
-  ["/shop", "S", "Shop"],
+  ["/coach", "\uD83E\uDDE0", "Coach"],
+  ["/program", "\uD83D\uDCD8", "Programme"],
+  ["/shop", "\uD83D\uDED2", "Shop"],
 ] as const;
 
 export default function BottomNav() {
