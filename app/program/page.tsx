@@ -65,22 +65,11 @@ function tagForItem(text: string) {
   if (t.includes("retour au calme") || t.includes("étirements")) {
     return { label: "Retour au calme", color: "#0f766e", bg: "#ccfbf1" };
   }
-  if (t.includes("séries")) {
-    return { label: "Séries", color: "#1d4ed8", bg: "#dbeafe" };
-  }
-  if (t.includes("course") || t.includes("cardio")) {
-    return { label: "Cardio", color: "#15803d", bg: "#dcfce7" };
-  }
-  if (
-    t.includes("gainage") ||
-    t.includes("squat") ||
-    t.includes("fente") ||
-    t.includes("pompe") ||
-    t.includes("renforcement")
-  ) {
-    return { label: "Renfo", color: "#4338ca", bg: "#e0e7ff" };
-  }
-  return null;
+  return {
+    label: "Exercices",
+    color: "#1d4ed8",
+    bg: "#dbeafe",
+  };
 }
 
 function groupSessionItems(items: string[]) {
@@ -92,29 +81,10 @@ function groupSessionItems(items: string[]) {
     items: string[];
   }[] = [];
 
-  const order = [
-    "Échauffement",
-    "Séries",
-    "Renfo",
-    "Cardio",
-    "Retour au calme",
-  ];
-
-  const defaultGroup = {
-    key: "exercices",
-    label: "Exercices",
-    color: "#1e40af",
-    bg: "#eff6ff",
-    items: [] as string[],
-  };
+  const order = ["Échauffement", "Exercices", "Retour au calme"];
 
   items.forEach((item) => {
     const tag = tagForItem(item);
-    if (!tag) {
-      defaultGroup.items.push(item);
-      return;
-    }
-
     let group = groups.find((g) => g.label === tag.label);
     if (!group) {
       group = {
@@ -129,18 +99,9 @@ function groupSessionItems(items: string[]) {
     group.items.push(item);
   });
 
-  if (defaultGroup.items.length > 0) {
-    groups.push(defaultGroup);
-  }
-
-  return groups.sort((a, b) => {
-    const aIndex = order.indexOf(a.label);
-    const bIndex = order.indexOf(b.label);
-    if (aIndex === -1 && bIndex === -1) return 0;
-    if (aIndex === -1) return 1;
-    if (bIndex === -1) return -1;
-    return aIndex - bIndex;
-  });
+  return groups.sort(
+    (a, b) => order.indexOf(a.label) - order.indexOf(b.label)
+  );
 }
 
 function highlightItem(text: string) {
