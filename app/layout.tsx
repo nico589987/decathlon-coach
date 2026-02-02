@@ -59,11 +59,11 @@ export default function RootLayout({
             <span
               style={{
                 color: "rgba(255,255,255,0.9)",
-                fontSize: 13,
-                fontWeight: 500,
+                fontSize: 14,
+                fontWeight: 600,
               }}
             >
-              Ton programme sport, clair et motivant
+              Ready to play?
             </span>
           </div>
 
@@ -78,11 +78,12 @@ export default function RootLayout({
               style={{
                 background: "rgba(255,255,255,0.18)",
                 borderRadius: 999,
-                padding: "6px 12px",
+                padding: "8px 16px",
                 color: "white",
-                fontSize: 12,
-                fontWeight: 700,
+                fontSize: 14,
+                fontWeight: 800,
                 letterSpacing: 0.3,
+                textTransform: "uppercase",
               }}
             >
               DECATHLON

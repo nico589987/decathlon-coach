@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import { usePathname } from "next/navigation";
 
 const items = [
-  ["/coach", "🧠", "Coach"],
-  ["/program", "📘", "Programme"],
-  ["/shop", "🛒", "Shop"],
+  ["/coach", "C", "Coach"],
+  ["/program", "P", "Programme"],
+  ["/shop", "S", "Shop"],
 ] as const;
 
 export default function BottomNav() {
@@ -62,3 +62,4 @@ export default function BottomNav() {
     </nav>
   );
 }
+
