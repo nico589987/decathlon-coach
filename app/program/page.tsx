@@ -8,7 +8,34 @@ type Session = {
   content: string;
   done?: boolean;
   feedback?: "facile" | "ok" | "dur" | "trop_dur";
+  products?: string[];
 };
+
+const PRODUCT_CATALOG = [
+  {
+    id: "running-shoes",
+    label: "Chaussures de running",
+    aliases: ["chaussures running", "chaussures de running"],
+  },
+  {
+    id: "fitness-mat",
+    label: "Tapis de fitness",
+    aliases: ["tapis fitness", "tapis de fitness"],
+  },
+  {
+    id: "resistance-bands",
+    label: "Bandes de resistance",
+    aliases: ["bandes elastiques", "bandes de resistance"],
+  },
+];
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
 
 export default function ProgramPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -51,6 +78,21 @@ export default function ProgramPage() {
   function deleteSession(id: string) {
     const updated = sessions.filter((s) => s.id !== id);
     save(updated);
+  }
+
+  function getProductLinks(products: string[]) {
+    const index = new Map(
+      PRODUCT_CATALOG.flatMap((p) =>
+        p.aliases.map((a) => [normalizeText(a), p])
+      )
+    );
+
+    return products
+      .map((p) => {
+        const match = index.get(normalizeText(p));
+        return match ? { id: match.id, label: match.label } : null;
+      })
+      .filter(Boolean) as { id: string; label: string }[];
   }
 
   return (
@@ -99,6 +141,34 @@ export default function ProgramPage() {
           <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
             {s.content}
           </div>
+
+          {s.products && s.products.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                Produits recommandes
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {getProductLinks(s.products).map((p) => (
+                  <a
+                    key={p.id}
+                    href={`/shop/${p.id}`}
+                    style={{
+                      textDecoration: "none",
+                      background: "#ecfeff",
+                      border: "1px solid #a5f3fc",
+                      color: "#0e7490",
+                      borderRadius: 999,
+                      padding: "6px 12px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {p.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {!s.done && (
             <button
