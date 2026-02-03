@@ -1,93 +1,23 @@
 ﻿"use client";
 
 import { useMemo, useState } from "react";
-
-const products = [
-  {
-    id: "running-shoes",
-    name: "Chaussures de running",
-    price: "79,99 €",
-    image: "/products/running-shoes.jpg",
-    category: "Running",
-    badge: "Bestseller",
-    rating: "4.7",
-  },
-  {
-    id: "fitness-mat",
-    name: "Tapis de fitness",
-    price: "19,99 €",
-    image: "/products/fitness-mat.jpg",
-    category: "Fitness",
-    badge: "Essentiel",
-    rating: "4.6",
-  },
-  {
-    id: "resistance-bands",
-    name: "Bandes de résistance",
-    price: "14,99 €",
-    image: "/products/resistance-bands.jpg",
-    category: "Renfo",
-    badge: "Petit prix",
-    rating: "4.5",
-  },
-  {
-    id: "jump-rope",
-    name: "Corde à sauter",
-    price: "9,99 €",
-    image: "/products/fitness-mat.jpg",
-    category: "Cardio",
-    badge: "Cardio",
-    rating: "4.4",
-  },
-  {
-    id: "dumbbells",
-    name: "Haltères réglables",
-    price: "49,99 €",
-    image: "/products/resistance-bands.jpg",
-    category: "Renfo",
-    badge: "Polyvalent",
-    rating: "4.8",
-  },
-  {
-    id: "yoga-blocks",
-    name: "Briques de yoga",
-    price: "12,99 €",
-    image: "/products/fitness-mat.jpg",
-    category: "Mobility",
-    badge: "Souplesse",
-    rating: "4.5",
-  },
-  {
-    id: "running-socks",
-    name: "Chaussettes running",
-    price: "7,99 €",
-    image: "/products/running-shoes.jpg",
-    category: "Running",
-    badge: "Confort",
-    rating: "4.3",
-  },
-  {
-    id: "foam-roller",
-    name: "Rouleau de massage",
-    price: "24,99 €",
-    image: "/products/fitness-mat.jpg",
-    category: "Récup",
-    badge: "Récupération",
-    rating: "4.6",
-  },
-];
+import { products } from "../data/decathlon_products";
 
 export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState("Tous");
 
-  const categories = useMemo(
-    () => ["Tous", "Running", "Fitness", "Renfo", "Cardio", "Récup"],
-    []
-  );
+  const categories = useMemo(() => {
+    const labels = Array.from(
+      new Set(products.map((product) => product.categoryLabel))
+    );
+    return ["Tous", ...labels];
+  }, []);
 
   const filtered = useMemo(() => {
     if (activeCategory === "Tous") return products;
-    return products.filter((p) => p.category === activeCategory);
+    return products.filter(
+      (product) => product.categoryLabel === activeCategory
+    );
   }, [activeCategory]);
 
   return (
@@ -243,17 +173,39 @@ export default function ShopPage() {
                   position: "relative",
                   borderRadius: 12,
                   overflow: "hidden",
+                  background: "#f1f5f9",
                 }}
               >
-                <img
-                  src={product.image}
-                  alt={product.name}
+                <div
                   style={{
-                    width: "100%",
-                    height: 150,
-                    objectFit: "cover",
+                    position: "absolute",
+                    inset: 0,
+                    display: "grid",
+                    placeItems: "center",
+                    color: "#94a3b8",
+                    fontWeight: 700,
+                    zIndex: 0,
                   }}
-                />
+                >
+                  Image indisponible
+                </div>
+                {product.image && (
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                    style={{
+                      width: "100%",
+                      height: 150,
+                      objectFit: "cover",
+                      position: "relative",
+                      zIndex: 1,
+                    }}
+                  />
+                )}
                 <div
                   style={{
                     position: "absolute",
@@ -272,7 +224,7 @@ export default function ShopPage() {
                 </div>
               </div>
               <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-                {product.category}
+                {product.categoryLabel}
               </div>
               <h3 style={{ margin: 0, fontSize: 16 }}>{product.name}</h3>
               <div
@@ -285,9 +237,6 @@ export default function ShopPage() {
               >
                 <span style={{ fontWeight: 800, color: "#0f172a" }}>
                   {product.price}
-                </span>
-                <span style={{ fontSize: 12, color: "#334155" }}>
-                  ★ {product.rating}
                 </span>
               </div>
               <div
@@ -312,3 +261,6 @@ export default function ShopPage() {
     </div>
   );
 }
+
+
+
