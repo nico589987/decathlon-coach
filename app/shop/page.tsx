@@ -30,6 +30,15 @@ export default function ShopPage() {
           "radial-gradient(1200px 420px at 10% -10%, rgba(60,70,184,0.12) 0%, rgba(248,250,252,0) 70%), radial-gradient(900px 420px at 90% -20%, rgba(37,99,235,0.12) 0%, rgba(248,250,252,0) 70%)",
       }}
     >
+      <style jsx global>{`
+        .shop-card {
+          transition: transform 180ms ease, box-shadow 180ms ease;
+        }
+        .shop-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 14px 26px rgba(15, 23, 42, 0.12);
+        }
+      `}</style>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <div
           style={{
@@ -155,6 +164,7 @@ export default function ShopPage() {
             <a
               key={product.id}
               href={`/shop/${product.id}`}
+              className="shop-card"
               style={{
                 textDecoration: "none",
                 color: "inherit",

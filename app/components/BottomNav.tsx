@@ -25,6 +25,7 @@ export default function BottomNav() {
         justifyContent: "space-around",
         padding: "10px 8px",
         boxShadow: "0 10px 24px rgba(15,23,42,0.12)",
+        zIndex: 50,
       }}
     >
       {items.map(([href, icon, label]) => {

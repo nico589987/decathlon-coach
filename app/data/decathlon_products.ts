@@ -9,7 +9,18 @@
   description: string;
 };
 
-export const products: Product[] = [
+function cleanText(value: string) {
+  return value
+    .replace(/â€“/g, "–")
+    .replace(/â€™/g, "’")
+    .replace(/Ã©/g, "é")
+    .replace(/Ã¨/g, "è")
+    .replace(/Ãª/g, "ê")
+    .replace(/Ã /g, "à")
+    .trim();
+}
+
+const rawProducts: Product[] = [
     {
         "id":  "8956115",
         "name":  "Kiprun KD900X.2 â€“ Carbon Plate (Green)",
@@ -391,5 +402,11 @@ export const products: Product[] = [
         "description":  "Sweat-resistant wireless earphones designed for running."
     }
 ];
+
+export const products: Product[] = rawProducts.map((product) => ({
+  ...product,
+  name: cleanText(product.name),
+  description: cleanText(product.description),
+}));
 
 

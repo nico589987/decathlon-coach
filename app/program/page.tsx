@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { products as allProducts } from "../data/decathlon_products";
 
 type Session = {
   id: string;
@@ -11,24 +12,6 @@ type Session = {
   feedback?: "facile" | "ok" | "dur" | "trop_dur";
   products?: string[];
 };
-
-const PRODUCT_CATALOG = [
-  {
-    id: "running-shoes",
-    label: "Chaussures de running",
-    aliases: ["chaussures running", "chaussures de running"],
-  },
-  {
-    id: "fitness-mat",
-    label: "Tapis de fitness",
-    aliases: ["tapis fitness", "tapis de fitness"],
-  },
-  {
-    id: "resistance-bands",
-    label: "Bandes de resistance",
-    aliases: ["bandes elastiques", "bandes de resistance"],
-  },
-];
 
 function normalizeText(value: string) {
   return value
@@ -43,26 +26,23 @@ function parseSessionItems(content: string) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-
   const bulletLines = lines.filter((line) => /^[-•]/.test(line));
   const source = bulletLines.length > 0 ? bulletLines : lines;
-
   return source
     .map((line) => line.replace(/^[-•]\s?/, ""))
     .filter((line) => line.length > 0);
 }
 
-
-function emojiForItem(text: string) {
+function emojiForItem(_text: string) {
   return "•";
 }
 
 function tagForItem(text: string) {
-  const t = text.toLowerCase();
-  if (t.includes("échauffement")) {
+  const t = normalizeText(text);
+  if (t.includes("echauffement")) {
     return { label: "Échauffement", color: "#f59e0b", bg: "#fef3c7" };
   }
-  if (t.includes("retour au calme") || t.includes("étirements")) {
+  if (t.includes("retour au calme") || t.includes("etirements")) {
     return { label: "Retour au calme", color: "#0f766e", bg: "#ccfbf1" };
   }
   return {
@@ -80,7 +60,6 @@ function groupSessionItems(items: string[]) {
     bg: string;
     items: string[];
   }[] = [];
-
   const order = ["Échauffement", "Exercices", "Retour au calme"];
 
   items.forEach((item) => {
@@ -99,16 +78,13 @@ function groupSessionItems(items: string[]) {
     group.items.push(item);
   });
 
-  return groups.sort(
-    (a, b) => order.indexOf(a.label) - order.indexOf(b.label)
-  );
+  return groups.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
 }
 
 function highlightItem(text: string) {
   const parts: ReactNode[] = [];
   const regex =
     /(\b\d+\s*(?:min|minutes|sec|secondes)\b|\b\d+\s*(?:séries?|reps?)\b|\b(?:échauffement|retour au calme|étirements|gainage|squats?|fentes?|pompes?|crunchs?|course)\b)/gi;
-
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -131,7 +107,6 @@ function highlightItem(text: string) {
   if (lastIndex < text.length) {
     parts.push(text.slice(lastIndex));
   }
-
   return parts;
 }
 
@@ -158,9 +133,7 @@ export default function ProgramPage() {
     if (!feedbackTarget) return;
 
     const updated = sessions.map((s) =>
-      s.id === feedbackTarget.id
-        ? { ...s, done: true, feedback: level }
-        : s
+      s.id === feedbackTarget.id ? { ...s, done: true, feedback: level } : s
     );
 
     save(updated);
@@ -186,19 +159,35 @@ export default function ProgramPage() {
     save(updated);
   }
 
-  function getProductLinks(products: string[]) {
-    const index = new Map(
-      PRODUCT_CATALOG.flatMap((p) =>
-        p.aliases.map((a) => [normalizeText(a), p])
-      )
+  function getProductLinks(items: string[]) {
+    const byId = new Map(allProducts.map((p) => [normalizeText(p.id), p]));
+    const byName = new Map(allProducts.map((p) => [normalizeText(p.name), p]));
+    const byCategory = new Map(
+      allProducts.map((p) => [normalizeText(p.categoryLabel), p])
     );
+    const results: { id: string; label: string }[] = [];
+    const seen = new Set<string>();
 
-    return products
-      .map((p) => {
-        const match = index.get(normalizeText(p));
-        return match ? { id: match.id, label: match.label } : null;
-      })
-      .filter(Boolean) as { id: string; label: string }[];
+    function add(p: (typeof allProducts)[number] | undefined) {
+      if (!p || seen.has(p.id)) return;
+      seen.add(p.id);
+      results.push({ id: p.id, label: p.name });
+    }
+
+    items.forEach((item) => {
+      const key = normalizeText(item);
+      add(byId.get(key));
+      add(byName.get(key));
+      add(byCategory.get(key));
+      const partial = allProducts.find(
+        (p) =>
+          normalizeText(p.name).includes(key) ||
+          normalizeText(p.categoryLabel).includes(key)
+      );
+      add(partial);
+    });
+
+    return results;
   }
 
   const doneCount = sessions.filter((s) => s.done).length;
@@ -236,7 +225,7 @@ export default function ProgramPage() {
             boxShadow: "0 8px 18px rgba(60,70,184,0.35)",
           }}
         >
-          {"\uD83D\uDCD8"}
+          {"📘"}
         </div>
         <div>
           <h1 style={{ margin: 0 }}>Mon Programme</h1>
@@ -261,7 +250,6 @@ export default function ProgramPage() {
           </div>
         )}
       </div>
-
       {totalCount > 0 && (
         <div
           style={{
@@ -283,7 +271,6 @@ export default function ProgramPage() {
           />
         </div>
       )}
-
       <style jsx global>{`
         .program-card {
           transition: transform 180ms ease, box-shadow 180ms ease;
@@ -305,7 +292,7 @@ export default function ProgramPage() {
         @keyframes donePulse {
           0% {
             transform: scale(0.98);
-            box-shadow: 0 0 0 rgba(34, 197, 94, 0.0);
+            box-shadow: 0 0 0 rgba(34, 197, 94, 0);
           }
           60% {
             transform: scale(1.01);
@@ -313,15 +300,12 @@ export default function ProgramPage() {
           }
           100% {
             transform: scale(1);
-            box-shadow: 0 0 0 rgba(34, 197, 94, 0.0);
+            box-shadow: 0 0 0 rgba(34, 197, 94, 0);
           }
         }
       `}</style>
-
       {sessions.length === 0 && (
-        <p style={{ opacity: 0.6 }}>
-          Aucune séance ajoutée pour l’instant.
-        </p>
+        <p style={{ opacity: 0.6 }}>Aucune séance ajoutée pour l’instant.</p>
       )}
 
       {sessions.map((s) => (
@@ -348,7 +332,6 @@ export default function ProgramPage() {
                 "linear-gradient(90deg, #3C46B8 0%, #2563eb 45%, #0ea5e9 100%)",
             }}
           />
-          {/* bouton supprimer */}
           <button
             onClick={() => deleteSession(s.id)}
             style={{
@@ -368,7 +351,6 @@ export default function ProgramPage() {
           </button>
 
           <h3 style={{ marginBottom: 10, marginTop: 4 }}>{s.title}</h3>
-
           <ul
             style={{
               margin: 0,
@@ -420,7 +402,7 @@ export default function ProgramPage() {
           {s.products && s.products.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                Produits recommandes
+                Produits recommandés
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {getProductLinks(s.products).map((p) => (
@@ -499,7 +481,6 @@ export default function ProgramPage() {
         </div>
       ))}
 
-      {/* modal feedback */}
       {feedbackTarget && (
         <div
           style={{
@@ -530,7 +511,7 @@ export default function ProgramPage() {
             ].map(([k, label]) => (
               <button
                 key={k}
-                onClick={() => applyFeedback(k as any)}
+                onClick={() => applyFeedback(k as Session["feedback"])}
                 style={{
                   display: "block",
                   width: "100%",
@@ -558,18 +539,3 @@ export default function ProgramPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
