@@ -21,7 +21,7 @@ function normalizeText(value: string) {
     .trim();
 }
 
-function parseSessionItems(content: string) {
+function parseSessionLines(content: string) {
   const lines = content
     .split("\n")
     .map((line) => line.trim())
@@ -29,7 +29,7 @@ function parseSessionItems(content: string) {
   const bulletLines = lines.filter((line) => /^[-•]/.test(line));
   const source = bulletLines.length > 0 ? bulletLines : lines;
   return source
-    .map((line) => line.replace(/^[-•]\s?/, ""))
+    .map((line) => line.replace(/^[-•]\s?/, "").trim())
     .filter((line) => line.length > 0);
 }
 
@@ -82,7 +82,7 @@ function suggestProducts(text: string): string[] {
   return categories;
 }
 
-function groupSessionItems(items: string[]) {
+function groupSessionItems(lines: string[]) {
   const groups: {
     key: string;
     label: string;
@@ -91,9 +91,30 @@ function groupSessionItems(items: string[]) {
     items: string[];
   }[] = [];
   const order = ["Échauffement", "Exercices", "Retour au calme"];
+  let currentLabel: "Échauffement" | "Exercices" | "Retour au calme" =
+    "Exercices";
 
-  items.forEach((item) => {
-    const tag = tagForItem(item);
+  lines.forEach((item) => {
+    const normalized = normalizeText(item.replace(/\*\*/g, ""));
+    if (normalized.includes("echauffement")) {
+      currentLabel = "Échauffement";
+      return;
+    }
+    if (normalized.includes("retour au calme") || normalized.includes("etirements")) {
+      currentLabel = "Retour au calme";
+      return;
+    }
+    if (normalized.includes("exercices") || normalized.includes("fractionne")) {
+      currentLabel = "Exercices";
+      return;
+    }
+
+    const tag =
+      currentLabel === "Échauffement"
+        ? { label: "Échauffement", color: "#f59e0b", bg: "#fef3c7" }
+        : currentLabel === "Retour au calme"
+        ? { label: "Retour au calme", color: "#0f766e", bg: "#ccfbf1" }
+        : { label: "Exercices", color: "#1d4ed8", bg: "#dbeafe" };
     let group = groups.find((g) => g.label === tag.label);
     if (!group) {
       group = {
@@ -105,7 +126,7 @@ function groupSessionItems(items: string[]) {
       };
       groups.push(group);
     }
-    group.items.push(item);
+    group.items.push(item.replace(/\*\*/g, ""));
   });
 
   return groups.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
@@ -405,7 +426,7 @@ export default function ProgramPage() {
                 color: "#111827",
               }}
             >
-              {groupSessionItems(parseSessionItems(s.content)).map((group) => (
+            {groupSessionItems(parseSessionLines(s.content)).map((group) => (
                 <li key={`${s.id}-${group.key}`} style={{ marginBottom: 12 }}>
                   <div
                     style={{

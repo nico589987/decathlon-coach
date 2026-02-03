@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useRef,
   useState,
   type KeyboardEvent,
   type ReactNode,
@@ -40,6 +41,8 @@ export default function CoachPage() {
   const [loading, setLoading] = useState(false);
   const [pendingSessions, setPendingSessions] = useState<SessionDraft[]>([]);
   const router = useRouter();
+  const threadRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   // ======================
   // Load saved conversation
@@ -247,6 +250,11 @@ export default function CoachPage() {
   function onKey(e: KeyboardEvent) {
     if (e.key === "Enter") send();
   }
+
+  useEffect(() => {
+    if (!threadRef.current || !bottomRef.current) return;
+    bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, loading]);
 
   // ======================
   // Add to program
@@ -603,18 +611,55 @@ export default function CoachPage() {
           }
         }
       `}</style>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h1>Coach IA</h1>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "10px 14px",
+          borderRadius: 14,
+          background: "linear-gradient(135deg, #eef2ff 0%, #ffffff 100%)",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 8px 18px rgba(15,23,42,0.08)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              background: "linear-gradient(135deg, #3C46B8 0%, #2563eb 100%)",
+              display: "grid",
+              placeItems: "center",
+              color: "white",
+              fontSize: 18,
+              fontWeight: 800,
+              boxShadow: "0 10px 22px rgba(60,70,184,0.35)",
+            }}
+          >
+            🧠
+          </div>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>Coach IA</div>
+            <div style={{ fontSize: 12, color: "#475569" }}>
+              Ton assistant sportif personnalisé
+            </div>
+          </div>
+        </div>
 
         <button
           onClick={newConversation}
           style={{
-            background: "#e5e7eb",
+            background: "linear-gradient(135deg, #3C46B8 0%, #2563eb 100%)",
             border: "none",
-            borderRadius: 10,
-            padding: "8px 12px",
+            borderRadius: 999,
+            padding: "8px 14px",
             cursor: "pointer",
-            fontSize: 13,
+            fontSize: 12,
+            fontWeight: 700,
+            color: "white",
+            boxShadow: "0 8px 16px rgba(60,70,184,0.3)",
           }}
         >
           Nouvelle conversation
@@ -629,7 +674,9 @@ export default function CoachPage() {
           height: 520,
           overflowY: "auto",
           background: "#f8fafc",
+          marginTop: 14,
         }}
+        ref={threadRef}
       >
         {messages.map((m, i) => (
           <div
@@ -672,6 +719,7 @@ export default function CoachPage() {
         ))}
 
         {loading && <div>Coach écrit…</div>}
+        <div ref={bottomRef} />
       </div>
 
       {pendingSessions.length > 0 && (
@@ -692,7 +740,14 @@ export default function CoachPage() {
         </button>
       )}
 
-      <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          marginTop: 16,
+          paddingBottom: 90,
+        }}
+      >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
