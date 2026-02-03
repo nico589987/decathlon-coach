@@ -28,7 +28,15 @@ function parseSessionLines(content: string) {
     .map((line) => line.trim())
     .filter(Boolean);
   const bulletLines = lines.filter((line) => /^[-•]/.test(line));
-  const source = bulletLines.length > 0 ? bulletLines : lines;
+  const sectionLine = (line: string) =>
+    /^#{1,3}\s*/.test(line) ||
+    /^(?:\*\*)?(?:Échauffement|Exercices|Course à pied|Course|Retour au calme|Étirements|Conseils)/i.test(
+      line
+    );
+  const source =
+    bulletLines.length > 0
+      ? lines.filter((line) => /^[-•]/.test(line) || sectionLine(line))
+      : lines;
   return source
     .map((line) => line.replace(/^[-•]\s?/, "").trim())
     .filter((line) => line.length > 0);
@@ -38,20 +46,26 @@ function emojiForItem(_text: string) {
   return "•";
 }
 
-function tagForItem(text: string) {
-  const t = normalizeText(text);
-  if (t.includes("echauffement")) {
-    return { label: "Échauffement", color: "#f59e0b", bg: "#fef3c7" };
-  }
-  if (t.includes("retour au calme") || t.includes("etirements")) {
-    return { label: "Retour au calme", color: "#0f766e", bg: "#ccfbf1" };
-  }
-  return {
-    label: "Exercices",
-    color: "#1d4ed8",
-    bg: "#dbeafe",
-  };
-}
+const SECTION_ORDER = [
+  "Échauffement",
+  "Exercices",
+  "Course à pied",
+  "Retour au calme",
+  "Étirements",
+  "Conseils",
+];
+
+const SECTION_STYLES: Record<
+  string,
+  { label: string; color: string; bg: string }
+> = {
+  "Échauffement": { label: "Échauffement", color: "#f59e0b", bg: "#fef3c7" },
+  "Exercices": { label: "Exercices", color: "#1d4ed8", bg: "#dbeafe" },
+  "Course à pied": { label: "Course à pied", color: "#16a34a", bg: "#dcfce7" },
+  "Retour au calme": { label: "Retour au calme", color: "#0f766e", bg: "#ccfbf1" },
+  "Étirements": { label: "Étirements", color: "#0891b2", bg: "#cffafe" },
+  "Conseils": { label: "Conseils", color: "#7c3aed", bg: "#ede9fe" },
+};
 
 function suggestProducts(text: string): string[] {
   const t = normalizeText(text);
@@ -83,6 +97,38 @@ function suggestProducts(text: string): string[] {
   return categories;
 }
 
+function detectSection(normalized: string) {
+  if (normalized.includes("echauffement")) return "Échauffement";
+  if (normalized.includes("retour au calme")) return "Retour au calme";
+  if (normalized.includes("etirements")) return "Étirements";
+  if (
+    normalized.includes("course") ||
+    normalized.includes("running") ||
+    normalized.includes("footing") ||
+    normalized.includes("fractionne") ||
+    normalized.includes("endurance")
+  ) {
+    return "Course à pied";
+  }
+  if (
+    normalized.includes("exercices") ||
+    normalized.includes("circuit") ||
+    normalized.includes("series") ||
+    normalized.includes("renforcement") ||
+    normalized.includes("cardio")
+  ) {
+    return "Exercices";
+  }
+  if (
+    normalized.includes("conseils") ||
+    normalized.includes("astuce") ||
+    normalized.includes("note")
+  ) {
+    return "Conseils";
+  }
+  return null;
+}
+
 function groupSessionItems(lines: string[]) {
   const groups: {
     key: string;
@@ -91,46 +137,40 @@ function groupSessionItems(lines: string[]) {
     bg: string;
     items: string[];
   }[] = [];
-  const order = ["Échauffement", "Exercices", "Retour au calme"];
-  let currentLabel: "Échauffement" | "Exercices" | "Retour au calme" =
-    "Exercices";
+  let currentLabel: string = "Exercices";
 
   lines.forEach((item) => {
-    const normalized = normalizeText(item.replace(/\*\*/g, ""));
-    if (normalized.includes("echauffement")) {
-      currentLabel = "Échauffement";
-      return;
-    }
-    if (normalized.includes("retour au calme") || normalized.includes("etirements")) {
-      currentLabel = "Retour au calme";
-      return;
-    }
-    if (normalized.includes("exercices") || normalized.includes("fractionne")) {
-      currentLabel = "Exercices";
-      return;
+    const cleaned = item.replace(/\*\*/g, "").replace(/^#+\s*/, "").trim();
+    if (!cleaned || cleaned === "--" || cleaned === "-") return;
+    const normalized = normalizeText(cleaned);
+    const detected = detectSection(normalized);
+    if (detected) {
+      currentLabel = detected;
+      const isExerciseHeader =
+        normalized.includes("circuit") ||
+        normalized.includes("series") ||
+        normalized.includes("exercices");
+      if (!isExerciseHeader) return;
     }
 
-    const tag =
-      currentLabel === "Échauffement"
-        ? { label: "Échauffement", color: "#f59e0b", bg: "#fef3c7" }
-        : currentLabel === "Retour au calme"
-        ? { label: "Retour au calme", color: "#0f766e", bg: "#ccfbf1" }
-        : { label: "Exercices", color: "#1d4ed8", bg: "#dbeafe" };
-    let group = groups.find((g) => g.label === tag.label);
+    const style = SECTION_STYLES[currentLabel] || SECTION_STYLES["Exercices"];
+    let group = groups.find((g) => g.label === style.label);
     if (!group) {
       group = {
-        key: tag.label.toLowerCase().replace(/\s+/g, "_"),
-        label: tag.label,
-        color: tag.color,
-        bg: tag.bg,
+        key: style.label.toLowerCase().replace(/\s+/g, "_"),
+        label: style.label,
+        color: style.color,
+        bg: style.bg,
         items: [],
       };
       groups.push(group);
     }
-    group.items.push(item.replace(/\*\*/g, ""));
+    group.items.push(cleaned);
   });
 
-  return groups.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
+  return groups.sort(
+    (a, b) => SECTION_ORDER.indexOf(a.label) - SECTION_ORDER.indexOf(b.label)
+  );
 }
 
 function highlightItem(text: string) {

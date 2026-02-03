@@ -401,6 +401,7 @@ export default function CoachPage() {
       const line = raw.trim();
       if (!line) return;
       const cleanLine = line.replace(/^-\s*/, "");
+      const displayLine = cleanLine.replace(/^#+\s*/, "");
       const titleMatch = cleanLine.match(/^\*\*(.+)\*\*$/);
       const sessionMatch = cleanLine.match(/^(?:\*\*)?(?:Séance|Seance)\b/i);
 
@@ -422,7 +423,7 @@ export default function CoachPage() {
           current.items.push(line.replace(/^[-•]\s?/, ""));
           return;
         }
-        const normalized = normalizeText(cleanLine.replace(/\*\*/g, ""));
+        const normalized = normalizeText(displayLine.replace(/\*\*/g, ""));
         const looksLikeSection =
           cleanLine.endsWith(":") ||
           normalized.includes("echauffement") ||
@@ -430,7 +431,7 @@ export default function CoachPage() {
           normalized.includes("fractionne") ||
           normalized.includes("exercices");
         if (looksLikeSection) {
-          current.items.push(cleanLine.replace(/\*\*/g, ""));
+          current.items.push(displayLine.replace(/\*\*/g, ""));
         }
         return;
       }
