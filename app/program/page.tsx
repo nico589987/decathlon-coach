@@ -527,7 +527,10 @@ export default function ProgramPage() {
               ? s.sections
               : groupSessionItems(parseSessionLines(s.content))
             ).map((group) => (
-              <li key={`${s.id}-${group.key}`} style={{ marginBottom: 12 }}>
+              <li
+                key={`${s.id}-${group.label.toLowerCase().replace(/\s+/g, "_")}`}
+                style={{ marginBottom: 12 }}
+              >
                 <div
                   style={{
                     display: "inline-flex",
