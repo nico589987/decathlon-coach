@@ -524,7 +524,12 @@ export default function ProgramPage() {
               }}
             >
             {(s.sections && s.sections.length > 0
-              ? s.sections
+              ? s.sections.map((section) => ({
+                  key: section.label.toLowerCase().replace(/\s+/g, "_"),
+                  label: section.label,
+                  items: section.items,
+                  ...(SECTION_STYLES[section.label] || SECTION_STYLES["Exercices"]),
+                }))
               : groupSessionItems(parseSessionLines(s.content))
             ).map((group) => (
               <li
