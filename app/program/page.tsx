@@ -10,6 +10,7 @@ type Session = {
   content: string;
   done?: boolean;
   feedback?: "facile" | "ok" | "dur" | "trop_dur";
+  completedAt?: string;
   products?: string[];
 };
 
@@ -184,7 +185,14 @@ export default function ProgramPage() {
     if (!feedbackTarget) return;
 
     const updated = sessions.map((s) =>
-      s.id === feedbackTarget.id ? { ...s, done: true, feedback: level } : s
+      s.id === feedbackTarget.id
+        ? {
+            ...s,
+            done: true,
+            feedback: level,
+            completedAt: new Date().toISOString(),
+          }
+        : s
     );
 
     save(updated);
@@ -375,7 +383,12 @@ export default function ProgramPage() {
       {(() => {
         const pending = sessions.filter((s) => !s.done);
         const completed = sessions.filter((s) => s.done);
-        const renderCard = (s: Session, moved?: boolean) => (
+        const renderCard = (s: Session, moved?: boolean, showDate?: boolean) => {
+          const completedLabel =
+            s.completedAt && s.done && showDate
+              ? new Date(s.completedAt).toLocaleDateString("fr-FR")
+              : null;
+          return (
           <div
             key={s.id}
             className={`program-card${moved ? " program-moved" : ""}`}
@@ -417,7 +430,33 @@ export default function ProgramPage() {
               Supprimer
             </button>
 
-            <h3 style={{ marginBottom: 10, marginTop: 4 }}>{s.title}</h3>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flexWrap: "wrap",
+                marginBottom: 10,
+                marginTop: 4,
+              }}
+            >
+              <h3 style={{ margin: 0 }}>{s.title}</h3>
+              {completedLabel && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#0f172a",
+                    background: "#e2e8f0",
+                    border: "1px solid #cbd5f5",
+                    borderRadius: 999,
+                    padding: "3px 10px",
+                  }}
+                >
+                  Fait le {completedLabel}
+                </span>
+              )}
+            </div>
             <ul
               style={{
                 margin: 0,
@@ -556,6 +595,7 @@ export default function ProgramPage() {
             )}
           </div>
         );
+        };
 
         return (
           <>
@@ -588,7 +628,9 @@ export default function ProgramPage() {
                     {completed.length}
                   </span>
                 </div>
-            {completed.map((s) => renderCard(s, s.id === lastCompletedId))}
+                {completed.map((s) =>
+                  renderCard(s, s.id === lastCompletedId, true)
+                )}
               </div>
             )}
           </>

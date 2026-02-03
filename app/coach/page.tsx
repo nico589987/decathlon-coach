@@ -214,10 +214,68 @@ export default function CoachPage() {
     setLoading(true);
 
     try {
+      const programRaw = localStorage.getItem("program_sessions");
+      const programSessions: {
+        title: string;
+        done?: boolean;
+        feedback?: "facile" | "ok" | "dur" | "trop_dur";
+        completedAt?: string;
+      }[] = programRaw ? JSON.parse(programRaw) : [];
+      const completed = programSessions.filter((s) => s.done);
+      const feedbackOrder: Record<string, number> = {
+        facile: 1,
+        ok: 2,
+        dur: 3,
+        trop_dur: 4,
+      };
+      const sorted = completed
+        .slice()
+        .sort((a, b) => {
+          const aTime = a.completedAt ? Date.parse(a.completedAt) : 0;
+          const bTime = b.completedAt ? Date.parse(b.completedAt) : 0;
+          return aTime - bTime;
+        });
+      const lastTen = sorted.slice(-10);
+      const formatDate = (value?: string) => {
+        if (!value) return "date inconnue";
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return "date inconnue";
+        return d.toLocaleDateString("fr-FR");
+      };
+      const trendBase = lastTen
+        .filter((s) => s.feedback)
+        .slice(-3)
+        .map((s) => feedbackOrder[s.feedback as string])
+        .filter((v) => typeof v === "number");
+      let trendNote = "";
+      if (trendBase.length === 3) {
+        if (trendBase[2] < trendBase[0]) {
+          trendNote = "Tendance récente: amélioration (effort perçu en baisse).";
+        } else if (trendBase[2] > trendBase[0]) {
+          trendNote = "Tendance récente: séance perçue plus difficile.";
+        } else {
+          trendNote = "Tendance récente: stable.";
+        }
+      }
+      const feedbackSummary =
+        lastTen.length === 0
+          ? "aucune séance effectuée"
+          : lastTen
+              .map(
+                (s) =>
+                  `${formatDate(s.completedAt)} — ${s.title} → ${
+                    s.feedback || "non notée"
+                  }`
+              )
+              .join(" | ");
+      const feedbackContext = trendNote
+        ? `${feedbackSummary} | ${trendNote}`
+        : feedbackSummary;
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMsgs }),
+        body: JSON.stringify({ messages: newMsgs, feedbackSummary: feedbackContext }),
       });
 
       const data = await res.json();
