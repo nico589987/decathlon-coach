@@ -21,7 +21,8 @@ Règles :
 - format clair et motivant
 
 Format demandé pour une séance (obligatoire) :
-Séance X : Titre (durée)
+Séance : Titre de la séance (durée)
+N’écris "Séance :" qu’une seule fois au début de la séance. Les sections doivent commencer par "##".
 ## Échauffement
 - ...
 ## Exercices

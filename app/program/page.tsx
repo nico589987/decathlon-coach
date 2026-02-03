@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -28,22 +28,14 @@ function parseSessionLines(content: string) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-  const bulletLines = lines.filter((line) => /^[-•]/.test(line));
-  const sectionLine = (line: string) =>
-    /^#{1,3}\s*/.test(line) ||
-    /^(?:\*\*)?(?:Échauffement|Exercices|Course à pied|Course|Retour au calme|Étirements|Conseils)/i.test(
-      line
-    );
-  const source = lines;
-  return source
-    .map((line) => line.replace(/^[-•]\s?/, "").trim())
+  return lines
+    .map((line) => line.replace(/^(?:-|•)\s?/, "").trim())
     .filter((line) => line.length > 0);
 }
 
 function emojiForItem(_text: string) {
   return "•";
 }
-
 const SECTION_ORDER = [
   "Échauffement",
   "Exercices",
@@ -220,14 +212,37 @@ function highlightItem(text: string) {
   return parts;
 }
 
+function cleanSessionTitle(title: string) {
+  return title
+    .replace(/^\s*(?:Séance|Seance)\s*\d+\s*:\s*/i, "")
+    .replace(/^\s*(?:Séance|Seance)\s*:\s*/i, "");
+}
+function extractDuration(title: string, content: string) {
+  const combined = `${title} ${content}`;
+  const match = combined.match(/(\d+\s*(?:min|minutes))/i);
+  if (!match) return null;
+  return match[1];
+}
+
 export default function ProgramPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [feedbackTarget, setFeedbackTarget] = useState<Session | null>(null);
   const [lastCompletedId, setLastCompletedId] = useState<string | null>(null);
+  const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const raw = localStorage.getItem("program_sessions");
-    if (raw) setSessions(JSON.parse(raw));
+    if (raw) {
+      const parsed: Session[] = JSON.parse(raw);
+      setSessions(parsed);
+      setCollapsedMap((prev) => {
+        const next = { ...prev };
+        parsed.forEach((s) => {
+          if (s.done && next[s.id] === undefined) next[s.id] = true;
+        });
+        return next;
+      });
+    }
   }, []);
 
   function save(list: Session[]) {
@@ -254,6 +269,7 @@ export default function ProgramPage() {
     );
 
     save(updated);
+    setCollapsedMap((prev) => ({ ...prev, [feedbackTarget.id]: true }));
     setFeedbackTarget(null);
     setLastCompletedId(feedbackTarget.id);
   }
@@ -269,11 +285,21 @@ export default function ProgramPage() {
       s.id === id ? { ...s, done: false, feedback: undefined } : s
     );
     save(updated);
+    setCollapsedMap((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 
   function deleteSession(id: string) {
     const updated = sessions.filter((s) => s.id !== id);
     save(updated);
+    setCollapsedMap((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 
   function getProductLinks(items: string[]) {
@@ -309,6 +335,7 @@ export default function ProgramPage() {
 
   const doneCount = sessions.filter((s) => s.done).length;
   const totalCount = sessions.length;
+  const orderMap = new Map(sessions.map((s, index) => [s.id, index]));
 
   return (
     <div
@@ -441,15 +468,29 @@ export default function ProgramPage() {
       {(() => {
         const pending = sessions.filter((s) => !s.done);
         const completed = sessions.filter((s) => s.done);
-        const renderCard = (s: Session, moved?: boolean, showDate?: boolean) => {
+        const renderCard = (
+          s: Session,
+          moved?: boolean,
+          showDate?: boolean
+        ) => {
           const completedLabel =
             s.completedAt && s.done && showDate
               ? new Date(s.completedAt).toLocaleDateString("fr-FR")
               : null;
+          const isCollapsed = Boolean(collapsedMap[s.id]);
+          const durationLabel = extractDuration(s.title, s.content);
+          const displayIndex = orderMap.has(s.id)
+            ? (orderMap.get(s.id) as number)
+            : undefined;
           return (
           <div
             key={s.id}
             className={`program-card${moved ? " program-moved" : ""}`}
+            onClick={() => {
+              if (isCollapsed) {
+                setCollapsedMap((prev) => ({ ...prev, [s.id]: false }));
+              }
+            }}
             style={{
               background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
               borderRadius: 18,
@@ -471,7 +512,10 @@ export default function ProgramPage() {
               }}
             />
             <button
-              onClick={() => deleteSession(s.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                deleteSession(s.id);
+              }}
               style={{
                 position: "absolute",
                 top: 12,
@@ -498,8 +542,35 @@ export default function ProgramPage() {
                 marginTop: 4,
               }}
             >
-              <h3 style={{ margin: 0 }}>{s.title}</h3>
-              {completedLabel && (
+          <h3 style={{ margin: 0 }}>
+            {typeof displayIndex === "number"
+              ? `Séance ${displayIndex + 1} : `
+              : ""}
+            {cleanSessionTitle(s.title)}
+          </h3>
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setCollapsedMap((prev) => ({
+                    ...prev,
+                    [s.id]: !prev[s.id],
+                  }));
+                }}
+                style={{
+                  marginLeft: 6,
+                  borderRadius: 999,
+                  border: "1px solid #c7d2fe",
+                  background: "#eef2ff",
+                  color: "#3730a3",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: "3px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                {isCollapsed ? "Afficher" : "Réduire"}
+              </button>
+              {completedLabel && !isCollapsed && (
                 <span
                   style={{
                     fontSize: 11,
@@ -515,116 +586,133 @@ export default function ProgramPage() {
                 </span>
               )}
             </div>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 18,
-                lineHeight: 1.5,
-                color: "#111827",
-              }}
-            >
-            {(s.sections && s.sections.length > 0
-              ? s.sections.map((section) => {
-                  const style =
-                    SECTION_STYLES[section.label] || SECTION_STYLES["Exercices"];
-                  return {
-                    key: section.label.toLowerCase().replace(/\s+/g, "_"),
-                    label: section.label,
-                    items: section.items,
-                    color: style.color,
-                    bg: style.bg,
-                  };
-                })
-              : groupSessionItems(parseSessionLines(s.content))
-            ).map((group) => (
-              <li
-                key={`${s.id}-${group.label.toLowerCase().replace(/\s+/g, "_")}`}
-                style={{ marginBottom: 12 }}
+            {isCollapsed ? (
+              <div style={{ marginTop: 8, color: "#475569", fontSize: 14 }}>
+                {durationLabel && (
+                  <div style={{ marginBottom: 4 }}>
+                    Durée : <strong>{durationLabel}</strong>
+                  </div>
+                )}
+                {completedLabel && <div>Fait le {completedLabel}</div>}
+              </div>
+            ) : (
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: 18,
+                  lineHeight: 1.5,
+                  color: "#111827",
+                }}
               >
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "3px 10px",
-                    borderRadius: 999,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    marginBottom: 6,
-                    background: group.bg,
-                    color: group.color,
-                    border: `1px solid ${group.color}33`,
-                  }}
-                >
-                  {group.label}
-                </div>
-                {group.label === "Conseils" ? (
-                  <div
-                    style={{
-                      marginTop: 4,
-                      padding: "10px 12px",
-                      borderRadius: 12,
-                      background: "rgba(124,58,237,0.08)",
-                      border: "1px solid rgba(124,58,237,0.2)",
-                    }}
+                {(s.sections && s.sections.length > 0
+                  ? s.sections.map((section) => {
+                      const style =
+                        SECTION_STYLES[section.label] ||
+                        SECTION_STYLES["Exercices"];
+                      return {
+                        key: section.label.toLowerCase().replace(/\s+/g, "_"),
+                        label: section.label,
+                        items: section.items,
+                        color: style.color,
+                        bg: style.bg,
+                      };
+                    })
+                  : groupSessionItems(parseSessionLines(s.content))
+                ).map((group) => (
+                  <li
+                    key={`${s.id}-${group.label
+                      .toLowerCase()
+                      .replace(/\s+/g, "_")}`}
+                    style={{ marginBottom: 12 }}
                   >
                     <div
                       style={{
-                        display: "flex",
+                        display: "inline-flex",
                         alignItems: "center",
-                        gap: 8,
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                        fontSize: 11,
                         fontWeight: 700,
-                        color: "#5b21b6",
                         marginBottom: 6,
+                        background: group.bg,
+                        color: group.color,
+                        border: `1px solid ${group.color}33`,
                       }}
                     >
-                      💡 Conseils du coach
+                      {group.label}
                     </div>
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
-                      {group.items.map((item, idx) => (
-                        <li
-                          key={`${s.id}-${group.key}-${idx}`}
-                          style={{
-                            marginBottom: 6,
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: 8,
-                          }}
-                        >
-                          <span style={{ width: 20 }}>•</span>
-                          <span style={{ lineHeight: 1.5 }}>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <ul style={{ margin: 0, paddingLeft: 18 }}>
-                    {group.items.map((item, idx) => (
-                      <li
-                        key={`${s.id}-${group.key}-${idx}`}
+                    {group.label === "Conseils" ? (
+                      <div
                         style={{
-                          marginBottom: 6,
-                          display: "flex",
-                          alignItems: "flex-start",
-                          gap: 8,
+                          marginTop: 4,
+                          padding: "10px 12px",
+                          borderRadius: 12,
+                          background: "rgba(124,58,237,0.08)",
+                          border: "1px solid rgba(124,58,237,0.2)",
                         }}
                       >
-                        <span style={{ width: 20 }}>{emojiForItem(item)}</span>
-                        <span style={{ lineHeight: 1.5 }}>
-                          {highlightItem(item)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontWeight: 700,
+                            color: "#5b21b6",
+                            marginBottom: 6,
+                          }}
+                        >
+                          💡 Conseils du coach
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                          {group.items.map((item, idx) => (
+                            <li
+                              key={`${s.id}-${group.key}-${idx}`}
+                              style={{
+                                marginBottom: 6,
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: 8,
+                              }}
+                            >
+                              <span style={{ width: 20 }}>•</span>
+                              <span style={{ lineHeight: 1.5 }}>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {group.items.map((item, idx) => (
+                          <li
+                            key={`${s.id}-${group.key}-${idx}`}
+                            style={{
+                              marginBottom: 6,
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 8,
+                            }}
+                          >
+                            <span style={{ width: 20 }}>
+                              {emojiForItem(item)}
+                            </span>
+                            <span style={{ lineHeight: 1.5 }}>
+                              {highlightItem(item)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
 
-            {getProductLinks(
-              s.products && s.products.length > 0
-                ? s.products
-                : suggestProducts(s.content)
-            ).length > 0 && (
+            {!isCollapsed &&
+              getProductLinks(
+                s.products && s.products.length > 0
+                  ? s.products
+                  : suggestProducts(s.content)
+              ).length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>
                   Produits recommandés
@@ -657,7 +745,7 @@ export default function ProgramPage() {
               </div>
             )}
 
-            {!s.done && (
+            {!isCollapsed && !s.done && (
               <button
                 onClick={() => markDone(s)}
                 style={{
@@ -677,7 +765,7 @@ export default function ProgramPage() {
               </button>
             )}
 
-            {s.done && (
+            {!isCollapsed && s.done && (
               <div style={{ marginTop: 10 }}>
                 <span
                   className={s.id === lastCompletedId ? "program-done" : undefined}
@@ -714,7 +802,7 @@ export default function ProgramPage() {
 
         return (
           <>
-            {pending.map((s) => renderCard(s))}
+            {pending.map((s) => renderCard(s, false, false))}
             {completed.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <div
@@ -810,3 +898,10 @@ export default function ProgramPage() {
     </div>
   );
 }
+
+
+
+
+
+
+

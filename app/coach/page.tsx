@@ -62,9 +62,21 @@ export default function CoachPage() {
   // ======================
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
+    const doneFlag = localStorage.getItem("coach_onboarding_done");
 
     if (raw) {
-      setMessages(JSON.parse(raw));
+      const parsed = JSON.parse(raw) as Msg[];
+      setMessages(parsed);
+      if (doneFlag === "true") {
+        setOnboardingDone(true);
+        setOnboardingStep(onboardingQuestions.length);
+      } else if (
+        parsed.some((m) => m.role === "user" && m.content.includes("Résumé des infos"))
+      ) {
+        setOnboardingDone(true);
+        setOnboardingStep(onboardingQuestions.length);
+        localStorage.setItem("coach_onboarding_done", "true");
+      }
       return;
     }
 
@@ -78,6 +90,7 @@ export default function CoachPage() {
 
     setMessages(init);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
+    localStorage.setItem("coach_onboarding_done", "false");
   }, []);
 
   function persist(list: Msg[]) {
@@ -99,6 +112,7 @@ export default function CoachPage() {
     setInjuryDetail("");
     setCustomAnswer("");
     setOnboardingDone(false);
+    localStorage.setItem("coach_onboarding_done", "false");
     persist(init);
   }
 
@@ -246,6 +260,7 @@ export default function CoachPage() {
     const newMsgs: Msg[] = [...messages, userMsg];
     persist(newMsgs);
     setOnboardingDone(true);
+    localStorage.setItem("coach_onboarding_done", "true");
 
     try {
       const programRaw = localStorage.getItem("program_sessions");
@@ -389,15 +404,34 @@ export default function CoachPage() {
   }
 
   function extractRealSessions(text: string): SessionDraft[] {
-    const blocks = text.split(/\n(?=(?:\*\*)?(?:Séance|Seance)\b)/i);
+    const blocks = text
+      .split(/\n(?=(?:\*\*)?(?:Séance|Seance)\s*:?)/i)
+      .map((block) => block.trim())
+      .filter(Boolean);
     const sessions: SessionDraft[] = [];
     for (const block of blocks) {
-      if (!/^(?:\*\*)?(?:Séance|Seance)\b/i.test(block.trim())) continue;
+      if (!/^(?:\*\*)?(?:Séance|Seance)\s*:?/i.test(block)) continue;
+      const lines = block.split("\n").map((line) => line.trim());
+      const firstLine = lines[0]
+        ?.replace(/^\*\*/, "")
+        .replace(/\*\*$/, "")
+        .replace(/^Séance\s*:\s*/i, "") ?? "";
+      const normalizedTitle = normalizeText(firstLine);
+      const sectionTitles = [
+        "echauffement",
+        "exercices",
+        "course a pied",
+        "retour au calme",
+        "etirements",
+        "conseils",
+      ];
+      if (sectionTitles.includes(normalizedTitle)) continue;
       if (block.length < 60) continue;
       const sections = extractSectionsFromBlock(block);
+      if (sections.length === 0) continue;
       sessions.push({
         id: crypto.randomUUID(),
-        title: block.split("\n")[0].replace(/\*\*/g, ""),
+        title: firstLine.replace(/\*\*/g, ""),
         content: trimSessionContent(block),
         products: suggestProducts(block),
         sections: sections.length > 0 ? sections : undefined,
