@@ -538,7 +538,7 @@ export default function ProgramPage() {
 
         return (
           <>
-            {pending.map(renderCard)}
+            {pending.map((s) => renderCard(s))}
             {completed.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <div
