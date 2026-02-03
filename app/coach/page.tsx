@@ -18,12 +18,17 @@ type Msg = {
   content: string;
 };
 
+type Section = {
+  label: string;
+  items: string[];
+};
+
 type SessionDraft = {
   id: string;
   title: string;
   content: string;
   products: string[];
-  sections?: { label: string; items: string[] }[];
+  sections?: Section[];
 };
 
 const STORAGE_KEY = "coach_messages_v1";
@@ -91,27 +96,7 @@ export default function CoachPage() {
     return block.trim();
   }
 
-  function extractRealSessions(text: string): SessionDraft[] {
-    const blocks = text.split(/\n(?=(?:\*\*)?(?:Séance|Seance)\b)/i);
-    const sessions: SessionDraft[] = [];
-    for (const block of blocks) {
-      if (!/^(?:\*\*)?(?:Séance|Seance)\b/i.test(block.trim())) continue;
-      if (block.length < 60) continue;
-      const sections = extractSectionsFromBlock(block);
-      sessions.push({
-        id: crypto.randomUUID(),
-        title: block.split("\n")[0].replace(/\*\*/g, ""),
-        content: trimSessionContent(block),
-        products: suggestProducts(block),
-        sections: sections.length > 0 ? sections : undefined,
-      });
-    }
-    return sessions;
-  }
-
-  function extractSectionsFromBlock(
-    block: string
-  ): { label: string; items: string[] }[] {
+  function extractSectionsFromBlock(block: string): Section[] {
     const lines = block.split("\n").map((line) => line.trim());
     const allowed = [
       "Échauffement",
@@ -142,7 +127,6 @@ export default function CoachPage() {
       if (normalized.startsWith("conseils")) return "Conseils";
       return null;
     };
-    type Section = { label: string; items: string[] };
     const sections: Section[] = [];
     let current: Section | null = null;
 
@@ -163,6 +147,24 @@ export default function CoachPage() {
 
     if (current && current.items.length > 0) sections.push(current);
     return sections.filter((s) => allowed.includes(s.label));
+  }
+
+  function extractRealSessions(text: string): SessionDraft[] {
+    const blocks = text.split(/\n(?=(?:\*\*)?(?:Séance|Seance)\b)/i);
+    const sessions: SessionDraft[] = [];
+    for (const block of blocks) {
+      if (!/^(?:\*\*)?(?:Séance|Seance)\b/i.test(block.trim())) continue;
+      if (block.length < 60) continue;
+      const sections = extractSectionsFromBlock(block);
+      sessions.push({
+        id: crypto.randomUUID(),
+        title: block.split("\n")[0].replace(/\*\*/g, ""),
+        content: trimSessionContent(block),
+        products: suggestProducts(block),
+        sections: sections.length > 0 ? sections : undefined,
+      });
+    }
+    return sessions;
   }
 
   function suggestProducts(text: string): string[] {
@@ -463,8 +465,8 @@ export default function CoachPage() {
       if (!line) return;
       const cleanLine = line.replace(/^-\s*/, "");
       const displayLine = cleanLine.replace(/^#+\s*/, "");
-      const titleMatch = cleanLine.match(/^\*\*(.+)\*\*$/);
-      const sessionMatch = cleanLine.match(/^(?:\*\*)?(?:Séance|Seance)\b/i);
+      const titleMatch = displayLine.match(/^\*\*(.+)\*\*$/);
+      const sessionMatch = displayLine.match(/^(?:\*\*)?(?:Séance|Seance)\b/i);
 
       if (titleMatch && sessionMatch) {
         if (current) sessions.push(current);
@@ -472,9 +474,10 @@ export default function CoachPage() {
         seenSession = true;
         return;
       }
+
       if (sessionMatch) {
         if (current) sessions.push(current);
-        current = { title: cleanLine.replace(/\*\*/g, ""), items: [] };
+        current = { title: displayLine.replace(/\*\*/g, ""), items: [] };
         seenSession = true;
         return;
       }
@@ -486,7 +489,7 @@ export default function CoachPage() {
         }
         const normalized = normalizeText(displayLine.replace(/\*\*/g, ""));
         const looksLikeSection =
-          cleanLine.endsWith(":") ||
+          displayLine.endsWith(":") ||
           normalized.includes("echauffement") ||
           normalized.includes("retour au calme") ||
           normalized.includes("fractionne") ||
