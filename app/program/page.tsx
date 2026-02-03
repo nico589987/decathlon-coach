@@ -33,10 +33,7 @@ function parseSessionLines(content: string) {
     /^(?:\*\*)?(?:Échauffement|Exercices|Course à pied|Course|Retour au calme|Étirements|Conseils)/i.test(
       line
     );
-  const source =
-    bulletLines.length > 0
-      ? lines.filter((line) => /^[-•]/.test(line) || sectionLine(line))
-      : lines;
+  const source = lines;
   return source
     .map((line) => line.replace(/^[-•]\s?/, "").trim())
     .filter((line) => line.length > 0);
