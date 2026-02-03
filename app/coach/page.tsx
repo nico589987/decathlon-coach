@@ -109,7 +109,9 @@ export default function CoachPage() {
     return sessions;
   }
 
-  function extractSectionsFromBlock(block: string) {
+  function extractSectionsFromBlock(
+    block: string
+  ): { label: string; items: string[] }[] {
     const lines = block.split("\n").map((line) => line.trim());
     const allowed = [
       "Échauffement",
@@ -140,8 +142,9 @@ export default function CoachPage() {
       if (normalized.startsWith("conseils")) return "Conseils";
       return null;
     };
-    const sections: { label: string; items: string[] }[] = [];
-    let current: { label: string; items: string[] } | null = null;
+    type Section = { label: string; items: string[] };
+    const sections: Section[] = [];
+    let current: Section | null = null;
 
     lines.forEach((line, idx) => {
       if (!line) return;
