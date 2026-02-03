@@ -12,6 +12,7 @@ type Session = {
   feedback?: "facile" | "ok" | "dur" | "trop_dur";
   completedAt?: string;
   products?: string[];
+  sections?: { label: string; items: string[] }[];
 };
 
 function normalizeText(value: string) {
@@ -522,7 +523,10 @@ export default function ProgramPage() {
                 color: "#111827",
               }}
             >
-            {groupSessionItems(parseSessionLines(s.content)).map((group) => (
+            {(s.sections && s.sections.length > 0
+              ? s.sections
+              : groupSessionItems(parseSessionLines(s.content))
+            ).map((group) => (
               <li key={`${s.id}-${group.key}`} style={{ marginBottom: 12 }}>
                 <div
                   style={{

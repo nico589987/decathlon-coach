@@ -23,6 +23,7 @@ type SessionDraft = {
   title: string;
   content: string;
   products: string[];
+  sections?: { label: string; items: string[] }[];
 };
 
 const STORAGE_KEY = "coach_messages_v1";
@@ -96,14 +97,69 @@ export default function CoachPage() {
     for (const block of blocks) {
       if (!/^(?:\*\*)?(?:Séance|Seance)\b/i.test(block.trim())) continue;
       if (block.length < 60) continue;
+      const sections = extractSectionsFromBlock(block);
       sessions.push({
         id: crypto.randomUUID(),
         title: block.split("\n")[0].replace(/\*\*/g, ""),
         content: trimSessionContent(block),
         products: suggestProducts(block),
+        sections: sections.length > 0 ? sections : undefined,
       });
     }
     return sessions;
+  }
+
+  function extractSectionsFromBlock(block: string) {
+    const lines = block.split("\n").map((line) => line.trim());
+    const allowed = [
+      "Échauffement",
+      "Exercices",
+      "Course à pied",
+      "Retour au calme",
+      "Étirements",
+      "Conseils",
+    ];
+    const normalizeLabel = (value: string) => {
+      const cleaned = value
+        .replace(/^#+\s*/, "")
+        .replace(/\*\*/g, "")
+        .replace(/:$/, "")
+        .trim();
+      const normalized = normalizeText(cleaned);
+      if (normalized.startsWith("echauffement")) return "Échauffement";
+      if (normalized.startsWith("exercices")) return "Exercices";
+      if (
+        normalized.startsWith("course a pied") ||
+        normalized.startsWith("course") ||
+        normalized.startsWith("running")
+      ) {
+        return "Course à pied";
+      }
+      if (normalized.startsWith("retour au calme")) return "Retour au calme";
+      if (normalized.startsWith("etirements")) return "Étirements";
+      if (normalized.startsWith("conseils")) return "Conseils";
+      return null;
+    };
+    const sections: { label: string; items: string[] }[] = [];
+    let current: { label: string; items: string[] } | null = null;
+
+    lines.forEach((line, idx) => {
+      if (!line) return;
+      if (idx === 0 && /^(?:\*\*)?(?:Séance|Seance)\b/i.test(line)) return;
+      const label = normalizeLabel(line);
+      if (label) {
+        if (current && current.items.length > 0) sections.push(current);
+        current = { label, items: [] };
+        return;
+      }
+      if (!current) return;
+      const cleaned = line.replace(/^[-•]\s?/, "").trim();
+      if (!cleaned || cleaned === "--" || cleaned === "-") return;
+      current.items.push(cleaned);
+    });
+
+    if (current && current.items.length > 0) sections.push(current);
+    return sections.filter((s) => allowed.includes(s.label));
   }
 
   function suggestProducts(text: string): string[] {
@@ -327,6 +383,7 @@ export default function CoachPage() {
       content: s.content,
       done: false,
       products: s.products,
+      sections: s.sections,
     }));
 
     localStorage.setItem(
@@ -348,6 +405,7 @@ export default function CoachPage() {
         content: session.content,
         done: false,
         products: session.products,
+        sections: session.sections,
       },
     ];
     localStorage.setItem("program_sessions", JSON.stringify(next));
