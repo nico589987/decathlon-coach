@@ -524,12 +524,17 @@ export default function ProgramPage() {
               }}
             >
             {(s.sections && s.sections.length > 0
-              ? s.sections.map((section) => ({
-                  key: section.label.toLowerCase().replace(/\s+/g, "_"),
-                  label: section.label,
-                  items: section.items,
-                  ...(SECTION_STYLES[section.label] || SECTION_STYLES["Exercices"]),
-                }))
+              ? s.sections.map((section) => {
+                  const style =
+                    SECTION_STYLES[section.label] || SECTION_STYLES["Exercices"];
+                  return {
+                    key: section.label.toLowerCase().replace(/\s+/g, "_"),
+                    label: section.label,
+                    items: section.items,
+                    color: style.color,
+                    bg: style.bg,
+                  };
+                })
               : groupSessionItems(parseSessionLines(s.content))
             ).map((group) => (
               <li
