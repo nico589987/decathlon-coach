@@ -319,6 +319,9 @@ export default function ProgramPage() {
         .program-done {
           animation: donePulse 600ms ease;
         }
+        .program-moved {
+          animation: moveDown 520ms ease;
+        }
         @keyframes donePulse {
           0% {
             transform: scale(0.98);
@@ -333,187 +336,243 @@ export default function ProgramPage() {
             box-shadow: 0 0 0 rgba(34, 197, 94, 0);
           }
         }
+        @keyframes moveDown {
+          0% {
+            transform: translateY(-6px);
+            opacity: 0.6;
+          }
+          100% {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
       `}</style>
       {sessions.length === 0 && (
         <p style={{ opacity: 0.6 }}>Aucune séance ajoutée pour l’instant.</p>
       )}
 
-      {sessions.map((s) => (
-        <div
-          key={s.id}
-          className="program-card"
-          style={{
-            background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-            borderRadius: 18,
-            padding: 18,
-            marginBottom: 18,
-            boxShadow: "0 10px 20px rgba(15,23,42,0.08)",
-            position: "relative",
-            border: "1px solid #e2e8f0",
-            overflow: "hidden",
-          }}
-        >
+      {(() => {
+        const pending = sessions.filter((s) => !s.done);
+        const completed = sessions.filter((s) => s.done);
+        const renderCard = (s: Session, moved?: boolean) => (
           <div
+            key={s.id}
+            className={`program-card${moved ? " program-moved" : ""}`}
             style={{
-              position: "absolute",
-              inset: "0 0 auto 0",
-              height: 6,
-              background:
-                "linear-gradient(90deg, #3C46B8 0%, #2563eb 45%, #0ea5e9 100%)",
-            }}
-          />
-          <button
-            onClick={() => deleteSession(s.id)}
-            style={{
-              position: "absolute",
-              top: 12,
-              right: 12,
-              background: "#ffe4e6",
-              color: "#be123c",
-              border: "none",
-              borderRadius: 8,
-              padding: "4px 8px",
-              fontSize: 12,
-              cursor: "pointer",
+              background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+              borderRadius: 18,
+              padding: 18,
+              marginBottom: 18,
+              boxShadow: "0 10px 20px rgba(15,23,42,0.08)",
+              position: "relative",
+              border: "1px solid #e2e8f0",
+              overflow: "hidden",
             }}
           >
-            Supprimer
-          </button>
-
-          <h3 style={{ marginBottom: 10, marginTop: 4 }}>{s.title}</h3>
-          <ul
-            style={{
-              margin: 0,
-              paddingLeft: 18,
-              lineHeight: 1.5,
-              color: "#111827",
-            }}
-          >
-            {groupSessionItems(parseSessionItems(s.content)).map((group) => (
-              <li key={`${s.id}-${group.key}`} style={{ marginBottom: 12 }}>
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "3px 10px",
-                    borderRadius: 999,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    marginBottom: 6,
-                    background: group.bg,
-                    color: group.color,
-                    border: `1px solid ${group.color}33`,
-                  }}
-                >
-                  {group.label}
-                </div>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
-                  {group.items.map((item, idx) => (
-                    <li
-                      key={`${s.id}-${group.key}-${idx}`}
-                      style={{
-                        marginBottom: 6,
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 8,
-                      }}
-                    >
-                      <span style={{ width: 20 }}>{emojiForItem(item)}</span>
-                      <span style={{ lineHeight: 1.5 }}>
-                        {highlightItem(item)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-
-          {getProductLinks(s.products && s.products.length > 0 ? s.products : suggestProducts(s.content)).length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                Produits recommandés
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {getProductLinks(
-                  s.products && s.products.length > 0
-                    ? s.products
-                    : suggestProducts(s.content)
-                ).map((p) => (
-                  <a
-                    key={p.id}
-                    href={`/shop/${p.id}`}
-                    className="program-chip"
-                    style={{
-                      textDecoration: "none",
-                      background: "#eff6ff",
-                      border: "1px solid #bfdbfe",
-                      color: "#1e40af",
-                      borderRadius: 999,
-                      padding: "6px 12px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {p.label}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {!s.done && (
-            <button
-              onClick={() => markDone(s)}
+            <div
               style={{
-                marginTop: 12,
-                background: "linear-gradient(135deg, #3C46B8 0%, #2563eb 100%)",
-                color: "white",
+                position: "absolute",
+                inset: "0 0 auto 0",
+                height: 6,
+                background:
+                  "linear-gradient(90deg, #3C46B8 0%, #2563eb 45%, #0ea5e9 100%)",
+              }}
+            />
+            <button
+              onClick={() => deleteSession(s.id)}
+              style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                background: "#ffe4e6",
+                color: "#be123c",
                 border: "none",
-                borderRadius: 12,
-                padding: "8px 14px",
+                borderRadius: 8,
+                padding: "4px 8px",
+                fontSize: 12,
                 cursor: "pointer",
-                fontWeight: 600,
-                boxShadow: "0 6px 12px rgba(60,70,184,0.3)",
               }}
             >
-              OK Marquer effectuée
+              Supprimer
             </button>
-          )}
 
-          {s.done && (
-            <div style={{ marginTop: 10 }}>
-              <span
-                className={s.id === lastCompletedId ? "program-done" : undefined}
-                style={{
-                  fontWeight: 700,
-                  color: "#0f172a",
-                  background: "#dcfce7",
-                  border: "1px solid #86efac",
-                  borderRadius: 999,
-                  padding: "4px 10px",
-                }}
-              >
-                OK Fait - ressenti : {s.feedback}
-              </span>
+            <h3 style={{ marginBottom: 10, marginTop: 4 }}>{s.title}</h3>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: 18,
+                lineHeight: 1.5,
+                color: "#111827",
+              }}
+            >
+              {groupSessionItems(parseSessionItems(s.content)).map((group) => (
+                <li key={`${s.id}-${group.key}`} style={{ marginBottom: 12 }}>
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      marginBottom: 6,
+                      background: group.bg,
+                      color: group.color,
+                      border: `1px solid ${group.color}33`,
+                    }}
+                  >
+                    {group.label}
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {group.items.map((item, idx) => (
+                      <li
+                        key={`${s.id}-${group.key}-${idx}`}
+                        style={{
+                          marginBottom: 6,
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 8,
+                        }}
+                      >
+                        <span style={{ width: 20 }}>{emojiForItem(item)}</span>
+                        <span style={{ lineHeight: 1.5 }}>
+                          {highlightItem(item)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
 
+            {getProductLinks(
+              s.products && s.products.length > 0
+                ? s.products
+                : suggestProducts(s.content)
+            ).length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                  Produits recommandés
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {getProductLinks(
+                    s.products && s.products.length > 0
+                      ? s.products
+                      : suggestProducts(s.content)
+                  ).map((p) => (
+                    <a
+                      key={p.id}
+                      href={`/shop/${p.id}`}
+                      className="program-chip"
+                      style={{
+                        textDecoration: "none",
+                        background: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                        color: "#1e40af",
+                        borderRadius: 999,
+                        padding: "6px 12px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {p.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!s.done && (
               <button
-                onClick={() => resetSession(s.id)}
+                onClick={() => markDone(s)}
                 style={{
-                  marginLeft: 12,
-                  background: "#e2e8f0",
+                  marginTop: 12,
+                  background:
+                    "linear-gradient(135deg, #3C46B8 0%, #2563eb 100%)",
+                  color: "white",
                   border: "none",
-                  borderRadius: 8,
-                  padding: "6px 10px",
+                  borderRadius: 12,
+                  padding: "8px 14px",
                   cursor: "pointer",
+                  fontWeight: 600,
+                  boxShadow: "0 6px 12px rgba(60,70,184,0.3)",
                 }}
               >
-                Annuler
+                OK Marquer effectuée
               </button>
-            </div>
-          )}
-        </div>
-      ))}
+            )}
+
+            {s.done && (
+              <div style={{ marginTop: 10 }}>
+                <span
+                  className={s.id === lastCompletedId ? "program-done" : undefined}
+                  style={{
+                    fontWeight: 700,
+                    color: "#0f172a",
+                    background: "#dcfce7",
+                    border: "1px solid #86efac",
+                    borderRadius: 999,
+                    padding: "4px 10px",
+                  }}
+                >
+                  OK Fait - ressenti : {s.feedback}
+                </span>
+
+                <button
+                  onClick={() => resetSession(s.id)}
+                  style={{
+                    marginLeft: 12,
+                    background: "#e2e8f0",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Annuler
+                </button>
+              </div>
+            )}
+          </div>
+        );
+
+        return (
+          <>
+            {pending.map(renderCard)}
+            {completed.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 10,
+                    marginTop: 4,
+                  }}
+                >
+                  <div style={{ fontWeight: 800, color: "#0f172a" }}>
+                    Séances effectuées
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#0f172a",
+                      background: "#e2e8f0",
+                      border: "1px solid #cbd5f5",
+                      borderRadius: 999,
+                      padding: "3px 10px",
+                    }}
+                  >
+                    {completed.length}
+                  </span>
+                </div>
+            {completed.map((s) => renderCard(s, s.id === lastCompletedId))}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {feedbackTarget && (
         <div
