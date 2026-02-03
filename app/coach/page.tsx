@@ -129,13 +129,15 @@ export default function CoachPage() {
     };
     const sections: Section[] = [];
     let current: Section | null = null;
+    const hasItems = (value: Section | null): value is Section =>
+      Boolean(value && value.items.length > 0);
 
     lines.forEach((line, idx) => {
       if (!line) return;
       if (idx === 0 && /^(?:\*\*)?(?:Séance|Seance)\b/i.test(line)) return;
       const label = normalizeLabel(line);
       if (label) {
-        if (current && current.items.length > 0) sections.push(current);
+        if (hasItems(current)) sections.push(current);
         current = { label, items: [] };
         return;
       }
@@ -145,7 +147,7 @@ export default function CoachPage() {
       current.items.push(cleaned);
     });
 
-    if (current && current.items.length > 0) sections.push(current);
+    if (hasItems(current)) sections.push(current);
     return sections.filter((s) => allowed.includes(s.label));
   }
 
