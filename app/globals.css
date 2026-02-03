@@ -1,8 +1,14 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --brand: #2f5ed1;
+  --brand-dark: #1f4aa3;
+  --brand-accent: #0ea5e9;
+  --glass: rgba(255, 255, 255, 0.75);
+  --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.12);
 }
 
 @theme inline {
@@ -14,13 +20,30 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #171717;
   }
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(900px 450px at 10% -10%, rgba(47, 94, 209, 0.18) 0%, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(700px 380px at 90% -20%, rgba(14, 165, 233, 0.16) 0%, rgba(255, 255, 255, 0) 70%),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Manrope", "Sora", Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.65)),
+    radial-gradient(rgba(47, 94, 209, 0.08) 1px, transparent 1px);
+  background-size: 100% 100%, 24px 24px;
+  pointer-events: none;
+  z-index: -1;
 }

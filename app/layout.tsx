@@ -14,27 +14,31 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body style={{ margin: 0, fontFamily: "Arial, sans-serif" }}>
+      <body style={{ margin: 0 }}>
         {/* Header */}
         <header
           style={{
             background:
-              "linear-gradient(90deg, #3C46B8 0%, #2F5ED1 55%, #1F79E5 100%)",
-            padding: "14px 20px",
+              "linear-gradient(100deg, #243b8f 0%, #2f5ed1 45%, #1787d6 100%)",
+            padding: "16px 22px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            boxShadow: "0 10px 24px rgba(15,23,42,0.18)",
+            boxShadow: "0 18px 30px rgba(15,23,42,0.22)",
             borderBottom: "1px solid rgba(255,255,255,0.2)",
+            position: "sticky",
+            top: 0,
+            zIndex: 60,
+            backdropFilter: "blur(8px)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
               style={{
-                background: "rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.18)",
                 border: "1px solid rgba(255,255,255,0.25)",
                 borderRadius: 12,
-                padding: "6px 10px",
+                padding: "6px 12px",
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
@@ -43,7 +47,10 @@ export default function RootLayout({
               <img
                 src="/decathlon-logo.png"
                 alt="Decathlon"
-                style={{ height: 24 }}
+                style={{
+                  height: 24,
+                  filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.2))",
+                }}
               />
               <span
                 style={{
@@ -67,16 +74,10 @@ export default function RootLayout({
             </span>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div
               style={{
-                background: "rgba(255,255,255,0.18)",
+                background: "rgba(255,255,255,0.2)",
                 borderRadius: 999,
                 padding: "8px 16px",
                 color: "white",
@@ -84,6 +85,7 @@ export default function RootLayout({
                 fontWeight: 800,
                 letterSpacing: 0.3,
                 textTransform: "uppercase",
+                boxShadow: "0 10px 20px rgba(15,23,42,0.18)",
               }}
             >
               DECATHLON
@@ -92,7 +94,7 @@ export default function RootLayout({
         </header>
 
         {/* Contenu */}
-        <main style={{ paddingBottom: 70 }}>{children}</main>
+        <main style={{ paddingBottom: 90 }}>{children}</main>
 
         {/* Navigation bottom */}
         <BottomNav />
@@ -100,7 +102,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-
-
-

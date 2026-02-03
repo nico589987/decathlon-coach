@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
-  type CSSProperties,
 } from "react";
 import { products as allProducts } from "../data/decathlon_products";
 import { useRouter } from "next/navigation";
@@ -46,9 +46,16 @@ export default function CoachPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingSessions, setPendingSessions] = useState<SessionDraft[]>([]);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [onboardingAnswers, setOnboardingAnswers] = useState<
+    Record<string, string | string[]>
+  >({});
+  const [injuryDetail, setInjuryDetail] = useState("");
+  const [customAnswer, setCustomAnswer] = useState("");
+  const [onboardingDone, setOnboardingDone] = useState(false);
   const router = useRouter();
   const threadRef = useRef<HTMLDivElement | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const lastCoachRef = useRef<HTMLDivElement | null>(null);
 
   // ======================
   // Load saved conversation
@@ -65,7 +72,7 @@ export default function CoachPage() {
       {
         role: "assistant",
         content:
-          "Salut 👋 Je suis ton coach.\nOn construit ton programme ensemble.\n🎯 Quel est ton objectif ?",
+          "Salut 👋 Je suis ton coach.\nOn va d'abord préciser quelques infos pour que je puisse te proposer un programme vraiment adapté.",
       },
     ];
 
@@ -82,13 +89,243 @@ export default function CoachPage() {
     const init: Msg[] = [
       {
         role: "assistant",
-        content: "Nouvelle discussion 👍 Quel est ton objectif sportif ?",
+        content:
+          "Nouvelle discussion 👍 On commence par quelques questions rapides.",
       },
     ];
     setPendingSessions([]);
+    setOnboardingStep(0);
+    setOnboardingAnswers({});
+    setInjuryDetail("");
+    setCustomAnswer("");
+    setOnboardingDone(false);
     persist(init);
   }
 
+  // ======================
+  // Onboarding questions
+  // ======================
+  const onboardingQuestions = [
+    {
+      id: "objectif",
+      label: "Quel est ton objectif principal ?",
+      options: [
+        "Perte de poids",
+        "Remise en forme",
+        "Performance",
+        "Bien-être",
+        "Autre",
+      ],
+    },
+    {
+      id: "experience",
+      label: "Quel est ton niveau actuel ?",
+      options: ["Débutant", "Intermédiaire", "Avancé", "Retour après pause"],
+    },
+    {
+      id: "injuries",
+      label: "As-tu des blessures ou antécédents médicaux à signaler ?",
+      options: ["Non", "Oui"],
+    },
+    {
+      id: "lieu",
+      label: "Où t'entraînes-tu le plus souvent ?",
+      options: ["Maison", "Salle", "Extérieur", "Mixte", "Autre"],
+    },
+    {
+      id: "materiel",
+      label: "Quel matériel as-tu à disposition ?",
+      options: [
+        "Aucun",
+        "Tapis / élastiques",
+        "Haltères",
+        "Vélo / tapis de course",
+        "Mixte",
+        "Autre",
+      ],
+    },
+    {
+      id: "rythme",
+      label: "Combien de séances par semaine veux-tu faire ?",
+      options: ["1", "2", "3", "4+", "Variable"],
+    },
+  ];
+
+  const activeQuestion = onboardingQuestions[onboardingStep];
+  const multiSelectIds = new Set(["materiel"]);
+  const isMultiSelect = activeQuestion && multiSelectIds.has(activeQuestion.id);
+  const needsInjuryDetail =
+    activeQuestion?.id === "injuries" &&
+    onboardingAnswers.injuries === "Oui" &&
+    !onboardingAnswers.injuries_detail;
+
+  function recordAnswer(value: string) {
+    if (!activeQuestion) return;
+    if (multiSelectIds.has(activeQuestion.id)) {
+      const current = onboardingAnswers[activeQuestion.id];
+      const list = Array.isArray(current) ? current : [];
+      const exists = list.includes(value);
+      const nextList = exists
+        ? list.filter((item) => item !== value)
+        : [...list, value];
+      setOnboardingAnswers({ ...onboardingAnswers, [activeQuestion.id]: nextList });
+      setCustomAnswer("");
+      return;
+    }
+    const next = { ...onboardingAnswers, [activeQuestion.id]: value };
+    setOnboardingAnswers(next);
+    setCustomAnswer("");
+    if (activeQuestion.id === "injuries") {
+      if (value === "Oui") {
+        setInjuryDetail("");
+        const cleared = { ...next };
+        delete cleared.injuries_detail;
+        setOnboardingAnswers(cleared);
+        return;
+      }
+    }
+    if (value === "Autre") return;
+    setOnboardingStep((prev) => prev + 1);
+  }
+
+  function submitInjuryDetail() {
+    if (!injuryDetail.trim()) return;
+    const next = {
+      ...onboardingAnswers,
+      injuries_detail: injuryDetail.trim(),
+    };
+    setOnboardingAnswers(next);
+    setOnboardingStep((prev) => prev + 1);
+  }
+
+  function submitCustomAnswer() {
+    if (!customAnswer.trim()) return;
+    if (activeQuestion && multiSelectIds.has(activeQuestion.id)) {
+      const current = onboardingAnswers[activeQuestion.id];
+      const list = Array.isArray(current) ? current : [];
+      const nextList = list.filter((item) => item !== "Autre");
+      setOnboardingAnswers({
+        ...onboardingAnswers,
+        [activeQuestion.id]: [...nextList, customAnswer.trim()],
+      });
+      setCustomAnswer("");
+      return;
+    }
+    recordAnswer(customAnswer.trim());
+  }
+
+  function getAnswerDisplay(value: string | string[] | undefined) {
+    if (!value) return "?";
+    if (Array.isArray(value)) return value.join(", ");
+    return value;
+  }
+
+  function goNextFromMultiSelect() {
+    if (!activeQuestion) return;
+    const value = onboardingAnswers[activeQuestion.id];
+    if (Array.isArray(value) && value.length === 0) return;
+    setOnboardingStep((prev) => prev + 1);
+  }
+
+  async function finishOnboarding() {
+    const summary = [
+      "Résumé des infos :",
+      `- Objectif : ${getAnswerDisplay(onboardingAnswers.objectif)}`,
+      `- Niveau : ${getAnswerDisplay(onboardingAnswers.experience)}`,
+      `- Blessures : ${getAnswerDisplay(onboardingAnswers.injuries)}`,
+      onboardingAnswers.injuries === "Oui"
+        ? `- Détails blessures : ${onboardingAnswers.injuries_detail || "non précisé"}`
+        : null,
+      `- Lieu : ${getAnswerDisplay(onboardingAnswers.lieu)}`,
+      `- Matériel : ${getAnswerDisplay(onboardingAnswers.materiel)}`,
+      `- Rythme : ${getAnswerDisplay(onboardingAnswers.rythme)} séances/sem`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const userMsg: Msg = { role: "user", content: summary };
+    const newMsgs: Msg[] = [...messages, userMsg];
+    persist(newMsgs);
+    setOnboardingDone(true);
+
+    try {
+      const programRaw = localStorage.getItem("program_sessions");
+      const programSessions: {
+        title: string;
+        done?: boolean;
+        feedback?: "facile" | "ok" | "dur" | "trop_dur";
+        completedAt?: string;
+      }[] = programRaw ? JSON.parse(programRaw) : [];
+      const completed = programSessions.filter((s) => s.done);
+      const feedbackOrder: Record<string, number> = {
+        facile: 1,
+        ok: 2,
+        dur: 3,
+        trop_dur: 4,
+      };
+      const sorted = completed
+        .slice()
+        .sort((a, b) => {
+          const aTime = a.completedAt ? Date.parse(a.completedAt) : 0;
+          const bTime = b.completedAt ? Date.parse(b.completedAt) : 0;
+          return aTime - bTime;
+        });
+      const lastTen = sorted.slice(-10);
+      const formatDate = (value?: string) => {
+        if (!value) return "date inconnue";
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return "date inconnue";
+        return d.toLocaleDateString("fr-FR");
+      };
+      const trendBase = lastTen
+        .filter((s) => s.feedback)
+        .slice(-3)
+        .map((s) => feedbackOrder[s.feedback as string])
+        .filter((v) => typeof v === "number");
+      let trendNote = "";
+      if (trendBase.length === 3) {
+        if (trendBase[2] < trendBase[0]) {
+          trendNote = "Tendance récente: amélioration (effort perçu en baisse).";
+        } else if (trendBase[2] > trendBase[0]) {
+          trendNote = "Tendance récente: séance perçue plus difficile.";
+        } else {
+          trendNote = "Tendance récente: stable.";
+        }
+      }
+      const feedbackSummary =
+        lastTen.length === 0
+          ? "aucune séance effectuée"
+          : lastTen
+              .map(
+                (s) =>
+                  `${formatDate(s.completedAt)} — ${s.title} → ${
+                    s.feedback || "non notée"
+                  }`
+              )
+              .join(" | ");
+      const feedbackContext = trendNote
+        ? `${feedbackSummary} | ${trendNote}`
+        : feedbackSummary;
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMsgs, feedbackSummary: feedbackContext }),
+      });
+      const data = await res.json();
+      const reply: string = data.content || "";
+      const assistantMsg: Msg = { role: "assistant", content: reply };
+      const updated: Msg[] = [...newMsgs, assistantMsg];
+      persist(updated);
+      const sessions = extractRealSessions(reply);
+      setPendingSessions(sessions);
+    } catch {
+      const errMsg: Msg = {
+        role: "assistant",
+        content: "Oups — erreur IA.",
+      };
+      persist([...newMsgs, errMsg]);
+    }
+  }
   // ======================
   // Extract sessions safely
   // ======================
@@ -264,6 +501,7 @@ export default function CoachPage() {
   // ======================
   async function send() {
     if (!input.trim() || loading) return;
+    if (!onboardingDone) return;
 
     const userMsg: Msg = {
       role: "user",
@@ -373,9 +611,16 @@ export default function CoachPage() {
   }
 
   useEffect(() => {
-    if (!threadRef.current || !bottomRef.current) return;
-    bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (!lastCoachRef.current) return;
+    lastCoachRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (onboardingDone) return;
+    if (onboardingStep >= onboardingQuestions.length) {
+      finishOnboarding();
+    }
+  }, [onboardingDone, onboardingStep]);
 
   // ======================
   // Add to program
@@ -465,7 +710,7 @@ export default function CoachPage() {
     lines.forEach((raw) => {
       const line = raw.trim();
       if (!line) return;
-      const cleanLine = line.replace(/^-\s*/, "");
+      const cleanLine = line.replace(/^\-\s*/, "");
       const displayLine = cleanLine.replace(/^#+\s*/, "");
       const titleMatch = displayLine.match(/^\*\*(.+)\*\*$/);
       const sessionMatch = displayLine.match(/^(?:\*\*)?(?:Séance|Seance)\b/i);
@@ -803,48 +1048,207 @@ export default function CoachPage() {
         }}
         ref={threadRef}
       >
-        {messages.map((m, i) => (
+        {!onboardingDone && activeQuestion && (
           <div
-            key={i}
             style={{
-              display: "flex",
-              justifyContent: m.role === "user" ? "flex-end" : "flex-start",
               marginBottom: 14,
+              display: "flex",
+              justifyContent: "flex-start",
             }}
           >
             <div
               style={{
                 padding: 14,
                 borderRadius: 14,
-                maxWidth: "75%",
-                background:
-                  m.role === "user"
-                    ? "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)"
-                    : "linear-gradient(180deg, #f1f5f9 0%, #eef2ff 100%)",
-                color: m.role === "user" ? "white" : "black",
-                whiteSpace: "pre-wrap",
-                border: m.role === "user" ? "none" : "1px solid #e2e8f0",
-                boxShadow:
-                  m.role === "user"
-                    ? "0 6px 16px rgba(79,70,229,0.25)"
-                    : "0 6px 16px rgba(15,23,42,0.08)",
+                maxWidth: "80%",
+                background: "white",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 6px 16px rgba(15,23,42,0.08)",
               }}
             >
-              <b style={{ letterSpacing: 0.2 }}>
-                {m.role === "user" ? "Toi" : "Coach"}
-              </b>
-              <br />
-              {m.role === "assistant" ? (
-                <div style={{ marginTop: 6 }}>{renderCoachContent(m.content)}</div>
-              ) : (
-                m.content
+              <div style={{ fontWeight: 700, marginBottom: 10 }}>
+                {activeQuestion.label}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {activeQuestion.options.map((option) => {
+                  const answer = onboardingAnswers[activeQuestion.id];
+                  const selected = Array.isArray(answer)
+                    ? answer.includes(option)
+                    : answer === option;
+                  return (
+                    <button
+                      key={option}
+                      onClick={() => recordAnswer(option)}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 999,
+                        border: "1px solid #c7d2fe",
+                        background: selected
+                          ? "linear-gradient(135deg, #3C46B8 0%, #2563eb 100%)"
+                          : "#eef2ff",
+                        color: selected ? "white" : "#3730a3",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeQuestion.options.includes("Autre") &&
+                (Array.isArray(onboardingAnswers[activeQuestion.id])
+                  ? onboardingAnswers[activeQuestion.id]?.includes("Autre")
+                  : onboardingAnswers[activeQuestion.id] === "Autre") && (
+                  <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                    <input
+                      value={customAnswer}
+                      onChange={(e) => setCustomAnswer(e.target.value)}
+                      placeholder="Précise ici..."
+                      style={{
+                        flex: 1,
+                        padding: 10,
+                        borderRadius: 10,
+                        border: "1px solid #cbd5f5",
+                      }}
+                    />
+                    <button
+                      onClick={submitCustomAnswer}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 10,
+                        border: "none",
+                        background: "#3C46B8",
+                        color: "white",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Valider
+                    </button>
+                  </div>
+                )}
+
+              {needsInjuryDetail && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 13, marginBottom: 6 }}>
+                    Peux-tu préciser la blessure ou la gêne ?
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      value={injuryDetail}
+                      onChange={(e) => setInjuryDetail(e.target.value)}
+                      placeholder="Ex: genou gauche, épaule..."
+                      style={{
+                        flex: 1,
+                        padding: 10,
+                        borderRadius: 10,
+                        border: "1px solid #cbd5f5",
+                      }}
+                    />
+                    <button
+                      onClick={submitInjuryDetail}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 10,
+                        border: "none",
+                        background: "#3C46B8",
+                        color: "white",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Valider
+                    </button>
+                  </div>
+                </div>
               )}
+
+              {isMultiSelect && (
+                <div style={{ marginTop: 12 }}>
+                  <button
+                    onClick={goNextFromMultiSelect}
+                    disabled={
+                      Array.isArray(onboardingAnswers[activeQuestion.id])
+                        ? onboardingAnswers[activeQuestion.id].length === 0
+                        : true
+                    }
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      border: "none",
+                      background:
+                        Array.isArray(onboardingAnswers[activeQuestion.id]) &&
+                        onboardingAnswers[activeQuestion.id].length > 0
+                          ? "#3C46B8"
+                          : "#94a3b8",
+                      color: "white",
+                      fontWeight: 700,
+                      cursor:
+                        Array.isArray(onboardingAnswers[activeQuestion.id]) &&
+                        onboardingAnswers[activeQuestion.id].length > 0
+                          ? "pointer"
+                          : "not-allowed",
+                    }}
+                  >
+                    Suivant
+                  </button>
+                </div>
+              )}
+
             </div>
           </div>
-        ))}
+        )}
+
+        {messages.map((m, i) => {
+          const isLastCoach =
+            m.role === "assistant" &&
+            messages.slice(i + 1).every((next) => next.role !== "assistant");
+          return (
+            <div
+              key={i}
+              ref={isLastCoach ? lastCoachRef : undefined}
+              style={{
+                display: "flex",
+                justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+                marginBottom: 14,
+              }}
+            >
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 14,
+                  maxWidth: "75%",
+                  background:
+                    m.role === "user"
+                      ? "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)"
+                      : "linear-gradient(180deg, #f1f5f9 0%, #eef2ff 100%)",
+                  color: m.role === "user" ? "white" : "black",
+                  whiteSpace: "pre-wrap",
+                  border: m.role === "user" ? "none" : "1px solid #e2e8f0",
+                  boxShadow:
+                    m.role === "user"
+                      ? "0 6px 16px rgba(79,70,229,0.25)"
+                      : "0 6px 16px rgba(15,23,42,0.08)",
+                }}
+              >
+                <b style={{ letterSpacing: 0.2 }}>
+                  {m.role === "user" ? "Toi" : "Coach"}
+                </b>
+                <br />
+                {m.role === "assistant" ? (
+                  <div style={{ marginTop: 6 }}>{renderCoachContent(m.content)}</div>
+                ) : (
+                  m.content
+                )}
+              </div>
+            </div>
+          );
+        })}
 
         {loading && <div>Coach écrit…</div>}
-        <div ref={bottomRef} />
       </div>
 
       {pendingSessions.length > 0 && (
@@ -877,23 +1281,30 @@ export default function CoachPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKey}
-          placeholder="Écris ton message..."
+          placeholder={
+            onboardingDone
+              ? "Écris ton message..."
+              : "Réponds d'abord aux questions ci-dessus..."
+          }
+          disabled={!onboardingDone}
           style={{
             flex: 1,
             padding: 14,
             borderRadius: 12,
             border: "1px solid #ccc",
+            background: onboardingDone ? "white" : "#f1f5f9",
           }}
         />
         <button
           onClick={send}
+          disabled={!onboardingDone}
           style={{
             padding: "14px 20px",
             borderRadius: 12,
-            background: "#4f46e5",
+            background: onboardingDone ? "#4f46e5" : "#94a3b8",
             color: "white",
             border: "none",
-            cursor: "pointer",
+            cursor: onboardingDone ? "pointer" : "not-allowed",
           }}
         >
           Envoyer

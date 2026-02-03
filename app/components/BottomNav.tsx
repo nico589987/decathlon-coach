@@ -15,16 +15,17 @@ export default function BottomNav() {
     <nav
       style={{
         position: "fixed",
-        bottom: 14,
-        left: 14,
-        right: 14,
-        background: "white",
-        border: "1px solid #e2e8f0",
-        borderRadius: 16,
+        bottom: 16,
+        left: 16,
+        right: 16,
+        background: "rgba(255,255,255,0.85)",
+        border: "1px solid rgba(148,163,184,0.35)",
+        borderRadius: 20,
         display: "flex",
         justifyContent: "space-around",
-        padding: "10px 8px",
-        boxShadow: "0 10px 24px rgba(15,23,42,0.12)",
+        padding: "10px 10px",
+        boxShadow: "0 18px 32px rgba(15,23,42,0.18)",
+        backdropFilter: "blur(8px)",
         zIndex: 50,
       }}
     >
