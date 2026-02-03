@@ -150,7 +150,26 @@ function groupSessionItems(lines: string[]) {
         normalized.includes("circuit") ||
         normalized.includes("series") ||
         normalized.includes("exercices");
-      if (!isExerciseHeader) return;
+      const splitIndex = cleaned.indexOf(":");
+      const trailing =
+        splitIndex >= 0 ? cleaned.slice(splitIndex + 1).trim() : "";
+      if (trailing) {
+        const style =
+          SECTION_STYLES[currentLabel] || SECTION_STYLES["Exercices"];
+        let group = groups.find((g) => g.label === style.label);
+        if (!group) {
+          group = {
+            key: style.label.toLowerCase().replace(/\s+/g, "_"),
+            label: style.label,
+            color: style.color,
+            bg: style.bg,
+            items: [],
+          };
+          groups.push(group);
+        }
+        group.items.push(trailing);
+      }
+      if (!isExerciseHeader && !trailing) return;
     }
 
     const style = SECTION_STYLES[currentLabel] || SECTION_STYLES["Exercices"];
@@ -165,6 +184,7 @@ function groupSessionItems(lines: string[]) {
       };
       groups.push(group);
     }
+    if (normalizeText(cleaned) === normalizeText(style.label)) return;
     group.items.push(cleaned);
   });
 
@@ -506,23 +526,63 @@ export default function ProgramPage() {
               }}
             >
             {groupSessionItems(parseSessionLines(s.content)).map((group) => (
-                <li key={`${s.id}-${group.key}`} style={{ marginBottom: 12 }}>
+              <li key={`${s.id}-${group.key}`} style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "3px 10px",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    marginBottom: 6,
+                    background: group.bg,
+                    color: group.color,
+                    border: `1px solid ${group.color}33`,
+                  }}
+                >
+                  {group.label}
+                </div>
+                {group.label === "Conseils" ? (
                   <div
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "3px 10px",
-                      borderRadius: 999,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      marginBottom: 6,
-                      background: group.bg,
-                      color: group.color,
-                      border: `1px solid ${group.color}33`,
+                      marginTop: 4,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      background: "rgba(124,58,237,0.08)",
+                      border: "1px solid rgba(124,58,237,0.2)",
                     }}
                   >
-                    {group.label}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontWeight: 700,
+                        color: "#5b21b6",
+                        marginBottom: 6,
+                      }}
+                    >
+                      💡 Conseils du coach
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {group.items.map((item, idx) => (
+                        <li
+                          key={`${s.id}-${group.key}-${idx}`}
+                          style={{
+                            marginBottom: 6,
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 8,
+                          }}
+                        >
+                          <span style={{ width: 20 }}>•</span>
+                          <span style={{ lineHeight: 1.5 }}>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
+                ) : (
                   <ul style={{ margin: 0, paddingLeft: 18 }}>
                     {group.items.map((item, idx) => (
                       <li
@@ -541,9 +601,10 @@ export default function ProgramPage() {
                       </li>
                     ))}
                   </ul>
-                </li>
-              ))}
-            </ul>
+                )}
+              </li>
+            ))}
+          </ul>
 
             {getProductLinks(
               s.products && s.products.length > 0

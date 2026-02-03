@@ -33,9 +33,10 @@ Séance X : Titre (durée)
 ## Étirements
 - ... (si pertinent)
 ## Conseils
-- ... (si pertinent)
+- ... (toujours à la fin, 1 à 3 puces)
 
-Chaque section doit contenir des puces. Si une section ne s’applique pas, ne l’écris pas.
+Chaque section doit contenir des puces. Si une section ne s’applique pas, ne l’écris pas,
+sauf Conseils qui doit toujours apparaître en dernière section.
 Si tu proposes une séance, respecte ce format pour permettre l'ajout au programme.
 
 Si tu donnes des conseils matériel/équipement, ajoute une section :
