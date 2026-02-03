@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 const items = [
   ["/coach", "\uD83E\uDDE0", "Coach"],
   ["/program", "\uD83D\uDCD8", "Programme"],
+  ["/suivi", "\uD83D\uDCCA", "Suivi"],
   ["/shop", "\uD83D\uDED2", "Shop"],
 ] as const;
 
