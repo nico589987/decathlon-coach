@@ -44,6 +44,26 @@ export default function RootLayout({
                 gap: 8,
               }}
             >
+              <a
+                href="/"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,0.18)",
+                  border: "1px solid rgba(255,255,255,0.35)",
+                  color: "white",
+                  textDecoration: "none",
+                  fontWeight: 800,
+                }}
+                aria-label="Menu"
+                title="Menu"
+              >
+                ⌂
+              </a>
               <img
                 src="/decathlon-logo.png"
                 alt="Decathlon"

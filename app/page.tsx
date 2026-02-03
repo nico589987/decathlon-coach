@@ -181,6 +181,10 @@ export default function Home() {
             desc: "Marque tes séances effectuées et suis ta progression.",
           },
           {
+            title: "Tableau de bord",
+            desc: "Analyse tes performances et ton rythme sur la page Suivi.",
+          },
+          {
             title: "Conseils utiles",
             desc: "Hydratation, récupération, prévention des blessures.",
           },
@@ -216,6 +220,7 @@ export default function Home() {
           { label: "Programmes ajustés", value: "IA + ressenti" },
           { label: "Séances structurées", value: "5 sections" },
           { label: "Suivi simple", value: "1 clic" },
+          { label: "Progression visible", value: "Suivi" },
           { label: "Produits ciblés", value: "Decathlon" },
         ].map((stat) => (
           <div key={stat.label}>
