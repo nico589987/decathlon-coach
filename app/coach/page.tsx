@@ -1002,7 +1002,7 @@ export default function CoachPage() {
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 900, margin: "auto" }}>
+    <div className="page-coach" style={{ padding: 24, maxWidth: 900, margin: "auto" }}>
       <style jsx global>{`
         @keyframes coachCardIn {
           from {

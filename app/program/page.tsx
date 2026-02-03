@@ -339,6 +339,7 @@ export default function ProgramPage() {
 
   return (
     <div
+      className="page-program"
       style={{
         padding: 24,
         maxWidth: 980,

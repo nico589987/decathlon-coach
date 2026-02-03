@@ -179,6 +179,7 @@ export default function SuiviPage() {
 
   return (
     <div
+      className="page-suivi"
       style={{
         padding: "28px 24px 40px",
         maxWidth: 1100,

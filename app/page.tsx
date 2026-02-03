@@ -39,6 +39,7 @@ export default function Home() {
   };
   return (
     <div
+      className="page-home"
       style={{
         padding: "28px 24px 120px",
         maxWidth: 1100,
@@ -58,7 +59,7 @@ export default function Home() {
           overflow: "hidden",
         }}
       >
-        <div style={heroGridStyle}>
+        <div style={heroGridStyle} className="home-hero-grid">
           <div>
             <div style={pillStyle}>Ready to play?</div>
             <h1 style={{ fontSize: 44, margin: "16px 0 10px", lineHeight: 1.1 }}>
@@ -169,7 +170,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div style={{ marginTop: 26, ...featureGridStyle }}>
+      <div style={{ marginTop: 26, ...featureGridStyle }} className="home-feature-grid">
         {[
           {
             title: "Plan clair",
@@ -199,6 +200,7 @@ export default function Home() {
       </div>
 
       <div
+        className="home-stats-grid"
         style={{
           ...cardStyle,
           marginTop: 26,
@@ -224,6 +226,7 @@ export default function Home() {
       </div>
 
       <div
+        className="home-cta"
         style={{
           ...cardStyle,
           marginTop: 28,

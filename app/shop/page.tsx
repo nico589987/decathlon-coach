@@ -22,6 +22,7 @@ export default function ShopPage() {
 
   return (
     <div
+      className="page-shop"
       style={{
         padding: 24,
         maxWidth: 1100,
@@ -39,7 +40,10 @@ export default function ShopPage() {
           box-shadow: 0 14px 26px rgba(15, 23, 42, 0.12);
         }
       `}</style>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <div
+        className="shop-header"
+        style={{ display: "flex", alignItems: "center", gap: 14 }}
+      >
         <div
           style={{
             width: 42,
@@ -70,6 +74,7 @@ export default function ShopPage() {
       </div>
 
       <div
+        className="shop-chips"
         style={{
           marginTop: 16,
           display: "flex",
@@ -153,6 +158,7 @@ export default function ShopPage() {
         </div>
       ) : (
         <div
+          className="shop-grid"
           style={{
             marginTop: 18,
             display: "grid",

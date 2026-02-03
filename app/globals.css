@@ -47,3 +47,108 @@ body::before {
   pointer-events: none;
   z-index: -1;
 }
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  header {
+    padding: 12px 14px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  header > div:first-child {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  header > div:first-child > span {
+    display: none;
+  }
+
+  header span {
+    font-size: 12px !important;
+  }
+
+  header img {
+    height: 20px !important;
+  }
+
+  main {
+    padding: 16px 12px 90px !important;
+  }
+
+  nav {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    padding: 8px !important;
+  }
+
+  nav a {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  h3 {
+    font-size: 16px;
+  }
+
+  button {
+    max-width: 100%;
+  }
+
+  .page-home,
+  .page-coach,
+  .page-program,
+  .page-shop,
+  .page-suivi {
+    padding: 18px 14px 110px !important;
+  }
+
+  .home-hero-grid,
+  .home-feature-grid,
+  .home-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .home-cta {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .shop-header {
+    flex-wrap: wrap;
+  }
+
+  .shop-chips {
+    gap: 6px !important;
+  }
+
+  .shop-chips button {
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+  }
+
+  .shop-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+    gap: 12px !important;
+  }
+}
