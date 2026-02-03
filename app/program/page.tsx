@@ -52,6 +52,36 @@ function tagForItem(text: string) {
   };
 }
 
+function suggestProducts(text: string): string[] {
+  const t = normalizeText(text);
+  const categories: string[] = [];
+  const addCategory = (label: string) => {
+    if (!categories.includes(label)) categories.push(label);
+  };
+
+  if (t.includes("course") || t.includes("running") || t.includes("footing")) {
+    addCategory("Chaussures");
+    addCategory("Chaussettes");
+  }
+  if (t.includes("fractionne") || t.includes("cardio")) {
+    addCategory("Chaussures");
+  }
+  if (t.includes("etirement") || t.includes("retour au calme")) {
+    addCategory("Récupération");
+  }
+  if (t.includes("gourde") || t.includes("bouteille") || t.includes("hydrat")) {
+    addCategory("Hydratation");
+  }
+  if (t.includes("montre") || t.includes("watch")) {
+    addCategory("Montres");
+  }
+  if (t.includes("gants") || t.includes("gloves")) {
+    addCategory("Gants");
+  }
+
+  return categories;
+}
+
 function groupSessionItems(items: string[]) {
   const groups: {
     key: string;
@@ -399,13 +429,17 @@ export default function ProgramPage() {
             ))}
           </ul>
 
-          {s.products && s.products.length > 0 && (
+          {getProductLinks(s.products && s.products.length > 0 ? s.products : suggestProducts(s.content)).length > 0 && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 700, marginBottom: 6 }}>
                 Produits recommandés
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {getProductLinks(s.products).map((p) => (
+                {getProductLinks(
+                  s.products && s.products.length > 0
+                    ? s.products
+                    : suggestProducts(s.content)
+                ).map((p) => (
                   <a
                     key={p.id}
                     href={`/shop/${p.id}`}

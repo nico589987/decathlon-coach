@@ -102,10 +102,10 @@ export default function CoachPage() {
   }
 
   function extractRealSessions(text: string): SessionDraft[] {
-    const blocks = text.split(/\n(?=(?:\*\*)?(?:Séance|Seance)\s*\d+)/i);
+    const blocks = text.split(/\n(?=(?:\*\*)?(?:Séance|Seance)\b)/i);
     const sessions: SessionDraft[] = [];
     for (const block of blocks) {
-      if (!/^(?:\*\*)?(?:Séance|Seance)\s*\d+/i.test(block.trim())) continue;
+      if (!/^(?:\*\*)?(?:Séance|Seance)\b/i.test(block.trim())) continue;
       if (block.length < 60) continue;
       sessions.push({
         id: crypto.randomUUID(),
@@ -156,6 +156,40 @@ export default function CoachPage() {
     }
     if (t.includes("musique")) {
       addCategory("Audio");
+    }
+    if (
+      t.includes("chaussure") ||
+      t.includes("chaussures") ||
+      t.includes("sneaker")
+    ) {
+      addCategory("Chaussures");
+    }
+    if (t.includes("chaussette") || t.includes("socks")) {
+      addCategory("Chaussettes");
+    }
+    if (t.includes("tapis") || t.includes("yoga")) {
+      addCategory("Récupération");
+    }
+    if (t.includes("elastique") || t.includes("elastic") || t.includes("bandes")) {
+      addCategory("Récupération");
+    }
+    if (t.includes("gourde") || t.includes("bouteille") || t.includes("hydrat")) {
+      addCategory("Hydratation");
+    }
+    if (t.includes("montre") || t.includes("watch")) {
+      addCategory("Montres");
+    }
+    if (t.includes("gants") || t.includes("gloves")) {
+      addCategory("Gants");
+    }
+    if (t.includes("casquette") || t.includes("cap")) {
+      addCategory("Casquettes");
+    }
+    if (t.includes("bandeau") || t.includes("headband")) {
+      addCategory("Bandeaux");
+    }
+    if (t.includes("brassard")) {
+      addCategory("Sécurité");
     }
 
     const picks: string[] = [];
@@ -314,12 +348,19 @@ export default function CoachPage() {
     lines.forEach((raw) => {
       const line = raw.trim();
       if (!line) return;
-      const titleMatch = line.match(/^\*\*(.+)\*\*$/);
-      const sessionMatch = line.match(/^(?:\*\*)?(?:Séance|Seance)\s*\d+/i);
+      const cleanLine = line.replace(/^-\s*/, "");
+      const titleMatch = cleanLine.match(/^\*\*(.+)\*\*$/);
+      const sessionMatch = cleanLine.match(/^(?:\*\*)?(?:Séance|Seance)\b/i);
 
       if (titleMatch && sessionMatch) {
         if (current) sessions.push(current);
         current = { title: titleMatch[1], items: [] };
+        seenSession = true;
+        return;
+      }
+      if (sessionMatch) {
+        if (current) sessions.push(current);
+        current = { title: cleanLine.replace(/\*\*/g, ""), items: [] };
         seenSession = true;
         return;
       }
@@ -329,9 +370,16 @@ export default function CoachPage() {
           current.items.push(line.replace(/^[-•]\s?/, ""));
           return;
         }
-        sessions.push(current);
-        current = null;
-        outro.push(line);
+        const normalized = normalizeText(cleanLine.replace(/\*\*/g, ""));
+        const looksLikeSection =
+          cleanLine.endsWith(":") ||
+          normalized.includes("echauffement") ||
+          normalized.includes("retour au calme") ||
+          normalized.includes("fractionne") ||
+          normalized.includes("exercices");
+        if (looksLikeSection) {
+          current.items.push(cleanLine.replace(/\*\*/g, ""));
+        }
         return;
       }
 
@@ -503,6 +551,46 @@ export default function CoachPage() {
         </div>
       );
     });
+
+    const inferredProducts = resolveProducts(suggestProducts(content));
+    if (parsed.sessions.length === 0 && inferredProducts.length > 0) {
+      nodes.push(
+        <div
+          key="coach-suggestions"
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 12,
+            background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>
+            Suggestions boutique
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {inferredProducts.map((p) => (
+              <a
+                key={p.id}
+                href={`/shop/${p.id}`}
+                style={{
+                  textDecoration: "none",
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  color: "#1e40af",
+                  borderRadius: 999,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {p.name}
+              </a>
+            ))}
+          </div>
+        </div>
+      );
+    }
 
     parsed.outro.forEach((line, idx) => {
       nodes.push(

@@ -225,7 +225,7 @@ const rawProducts: Product[] = [
         "id":  "run-gloves-100",
         "name":  "Run Warm 100 Gloves",
         "price":  "8,99 €",
-        "image":  null,
+        "image":  "/products/run-gloves-100.jpg",
         "categoryKey":  "gloves",
         "categoryLabel":  "Gants",
         "badge":  "Débutant",

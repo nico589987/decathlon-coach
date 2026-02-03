@@ -62,9 +62,10 @@ export default function ProductPage() {
             borderRadius: 12,
             overflow: "hidden",
             background: "#f1f5f9",
-            height: 320,
-            display: "grid",
-            placeItems: "center",
+            height: 360,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <div
@@ -88,10 +89,12 @@ export default function ProductPage() {
                 e.currentTarget.style.display = "none";
               }}
               style={{
-                width: "100%",
-                height: "100%",
+                maxWidth: "100%",
+                maxHeight: "100%",
+                width: "auto",
+                height: "auto",
                 objectFit: "contain",
-                padding: 16,
+                objectPosition: "center",
                 position: "relative",
                 zIndex: 1,
               }}
