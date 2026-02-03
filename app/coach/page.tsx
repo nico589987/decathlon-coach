@@ -1091,6 +1091,7 @@ export default function CoachPage() {
             }}
           >
             <div
+              className="coach-question-card"
               style={{
                 padding: 14,
                 borderRadius: 14,
@@ -1251,6 +1252,7 @@ export default function CoachPage() {
               }}
             >
               <div
+                className="coach-message-bubble"
                 style={{
                   padding: 14,
                   borderRadius: 14,

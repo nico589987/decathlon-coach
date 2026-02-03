@@ -513,6 +513,7 @@ export default function ProgramPage() {
               }}
             />
             <button
+              className="program-delete"
               onClick={(event) => {
                 event.stopPropagation();
                 deleteSession(s.id);

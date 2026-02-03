@@ -151,4 +151,25 @@ img {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
     gap: 12px !important;
   }
+
+  .coach-question-card,
+  .coach-message-bubble {
+    max-width: 100% !important;
+    width: 100%;
+  }
+
+  .coach-message-bubble {
+    font-size: 15px;
+  }
+
+  .program-card {
+    padding-top: 48px !important;
+  }
+
+  .program-delete {
+    top: 10px !important;
+    right: 10px !important;
+    font-size: 11px !important;
+    padding: 4px 6px !important;
+  }
 }
