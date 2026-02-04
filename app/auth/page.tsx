@@ -136,7 +136,7 @@ export default function AuthPage() {
       const { data: profileRow } = await supabase
         .from("profiles")
         .select(
-          "name, age_range, weight_range, sex, goal, level, location, equipment, injuries"
+          "name, age_range, weight_range, sex, goal, level, location, equipment, injuries, updated_at"
         )
         .eq("id", userId)
         .single();
@@ -155,6 +155,9 @@ export default function AuthPage() {
             injuries: profileRow.injuries || "Aucune",
           })
         );
+        if (profileRow.updated_at) {
+          localStorage.setItem("user_profile_updated_at", profileRow.updated_at);
+        }
       }
     }
     setStatus("Connecté ✅");

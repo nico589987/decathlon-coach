@@ -95,6 +95,8 @@ const defaultProfile: Profile = {
   injuries: "Aucune",
 };
 
+const PROFILE_UPDATED_KEY = "user_profile_updated_at";
+
 export default function SuiviPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [weeklyGoal, setWeeklyGoal] = useState(3);
@@ -110,22 +112,26 @@ export default function SuiviPage() {
     const goalRaw = localStorage.getItem("weekly_goal");
     if (goalRaw) setWeeklyGoal(Number(goalRaw));
     const profileRaw = localStorage.getItem("user_profile");
+    let localProfile: Profile | null = null;
     if (profileRaw) {
       const parsed = JSON.parse(profileRaw);
-      setProfile({ ...defaultProfile, ...parsed });
+      localProfile = { ...defaultProfile, ...parsed };
+      setProfile(localProfile);
     }
+    const localUpdatedRaw = localStorage.getItem(PROFILE_UPDATED_KEY);
+    const localUpdatedAt = localUpdatedRaw ? Date.parse(localUpdatedRaw) : 0;
     if (!supabaseConfigured) return;
 
     const fetchProfile = async (userId: string) => {
       const { data: profileRow } = await supabase
         .from("profiles")
         .select(
-          "name, age_range, weight_range, sex, goal, level, location, equipment, injuries"
+          "name, age_range, weight_range, sex, goal, level, location, equipment, injuries, updated_at"
         )
         .eq("id", userId)
         .maybeSingle();
       if (!profileRow) return;
-      const nextProfile = {
+      const nextProfile: Profile = {
         ...defaultProfile,
         name: profileRow.name || "",
         ageRange: profileRow.age_range || defaultProfile.ageRange,
@@ -137,8 +143,36 @@ export default function SuiviPage() {
         equipment: profileRow.equipment || defaultProfile.equipment,
         injuries: profileRow.injuries || defaultProfile.injuries,
       };
+      const remoteUpdatedAt = profileRow.updated_at
+        ? Date.parse(profileRow.updated_at)
+        : 0;
+
+      if (localProfile && localUpdatedAt > remoteUpdatedAt) {
+        const updatedAt = new Date().toISOString();
+        setProfile(localProfile);
+        localStorage.setItem("user_profile", JSON.stringify(localProfile));
+        localStorage.setItem(PROFILE_UPDATED_KEY, updatedAt);
+        await supabase.from("profiles").upsert({
+          id: userId,
+          name: localProfile.name,
+          age_range: localProfile.ageRange,
+          weight_range: localProfile.weightRange,
+          sex: localProfile.sex,
+          goal: localProfile.goal,
+          level: localProfile.level,
+          location: localProfile.location,
+          equipment: localProfile.equipment,
+          injuries: localProfile.injuries,
+          updated_at: updatedAt,
+        });
+        return;
+      }
+
       setProfile(nextProfile);
       localStorage.setItem("user_profile", JSON.stringify(nextProfile));
+      if (profileRow.updated_at) {
+        localStorage.setItem(PROFILE_UPDATED_KEY, profileRow.updated_at);
+      }
     };
 
     supabase.auth.getSession().then(({ data }) => {
@@ -309,8 +343,11 @@ export default function SuiviPage() {
   }
 
   function saveProfile(next: Profile) {
+    const updatedAt = new Date().toISOString();
     setProfile(next);
     localStorage.setItem("user_profile", JSON.stringify(next));
+    localStorage.setItem(PROFILE_UPDATED_KEY, updatedAt);
+    if (!supabaseConfigured) return;
     supabase.auth.getSession().then(async ({ data }) => {
       const userId = data.session?.user?.id;
       if (!userId) return;
@@ -325,7 +362,7 @@ export default function SuiviPage() {
         location: next.location,
         equipment: next.equipment,
         injuries: next.injuries,
-        updated_at: new Date().toISOString(),
+        updated_at: updatedAt,
       });
     });
   }
