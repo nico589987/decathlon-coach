@@ -37,6 +37,54 @@ function parseSessionLines(content: string) {
 function emojiForItem(_text: string) {
   return "•";
 }
+
+type UserSex = "female" | "male" | "unknown";
+
+function normalizeUserSex(value?: string): UserSex {
+  const normalized = normalizeText(value || "");
+  if (
+    normalized.includes("femme") ||
+    normalized.includes("women") ||
+    normalized.includes("female")
+  ) {
+    return "female";
+  }
+  if (
+    normalized.includes("homme") ||
+    normalized.includes("men") ||
+    normalized.includes("male")
+  ) {
+    return "male";
+  }
+  return "unknown";
+}
+
+function detectProductGender(product: (typeof allProducts)[number]) {
+  const hay = normalizeText(
+    `${product.name} ${product.description} ${product.categoryLabel} ${product.badge}`
+  );
+  const isFemale =
+    hay.includes("femme") ||
+    hay.includes("women") ||
+    hay.includes("woman") ||
+    hay.includes("female") ||
+    hay.includes("girls");
+  const isMale =
+    hay.includes("homme") ||
+    hay.includes("men") ||
+    hay.includes("man") ||
+    hay.includes("male") ||
+    hay.includes("boys");
+  if (isFemale && !isMale) return "female";
+  if (isMale && !isFemale) return "male";
+  return "unisex";
+}
+
+function allowBySex(product: (typeof allProducts)[number], userSex: UserSex) {
+  if (userSex === "female") return detectProductGender(product) !== "male";
+  if (userSex === "male") return detectProductGender(product) !== "female";
+  return true;
+}
 const SECTION_ORDER = [
   "Échauffement",
   "Exercices",
@@ -230,6 +278,7 @@ export default function ProgramPage() {
   const [feedbackTarget, setFeedbackTarget] = useState<Session | null>(null);
   const [lastCompletedId, setLastCompletedId] = useState<string | null>(null);
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
+  const [userSex, setUserSex] = useState<UserSex>("unknown");
 
   useEffect(() => {
     const raw = localStorage.getItem("program_sessions");
@@ -243,6 +292,17 @@ export default function ProgramPage() {
         });
         return next;
       });
+    }
+  }, []);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("user_profile");
+    if (!raw) return;
+    try {
+      const profile = JSON.parse(raw) as { sex?: string };
+      setUserSex(normalizeUserSex(profile.sex));
+    } catch {
+      setUserSex("unknown");
     }
   }, []);
 
@@ -314,6 +374,7 @@ export default function ProgramPage() {
 
     function add(p: (typeof allProducts)[number] | undefined) {
       if (!p || seen.has(p.id)) return;
+      if (!allowBySex(p, userSex)) return;
       seen.add(p.id);
       results.push({ id: p.id, label: p.name });
     }

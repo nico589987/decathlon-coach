@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { products as allProducts } from "../data/decathlon_products";
+import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
 type Role = "user" | "assistant";
@@ -42,11 +43,34 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function normalizeUserSex(value?: string): "female" | "male" | "unknown" {
+  const normalized = normalizeText(value || "");
+  if (
+    normalized.includes("femme") ||
+    normalized.includes("women") ||
+    normalized.includes("female")
+  ) {
+    return "female";
+  }
+  if (
+    normalized.includes("homme") ||
+    normalized.includes("men") ||
+    normalized.includes("male")
+  ) {
+    return "male";
+  }
+  return "unknown";
+}
+
 function getProfileSummary() {
   const raw = localStorage.getItem("user_profile");
   if (!raw) return "profil non défini";
   try {
     const profile = JSON.parse(raw) as {
+      name?: string;
+      ageRange?: string;
+      weightRange?: string;
+      sex?: string;
       goal?: string;
       level?: string;
       location?: string;
@@ -54,6 +78,10 @@ function getProfileSummary() {
       injuries?: string;
     };
     return [
+      `Prénom: ${profile.name || "?"}`,
+      `Âge: ${profile.ageRange || "?"}`,
+      `Poids: ${profile.weightRange || "?"}`,
+      `Sexe: ${profile.sex || "?"}`,
       `Objectif: ${profile.goal || "?"}`,
       `Niveau: ${profile.level || "?"}`,
       `Lieu: ${profile.location || "?"}`,
@@ -74,6 +102,7 @@ export default function CoachPage() {
   const [onboardingAnswers, setOnboardingAnswers] = useState<
     Record<string, string | string[]>
   >({});
+  const [userSex, setUserSex] = useState<"female" | "male" | "unknown">("unknown");
   const [injuryDetail, setInjuryDetail] = useState("");
   const [customAnswer, setCustomAnswer] = useState("");
   const [onboardingDone, setOnboardingDone] = useState(false);
@@ -115,6 +144,66 @@ export default function CoachPage() {
     setMessages(init);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
     localStorage.setItem("coach_onboarding_done", "false");
+  }, []);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("user_profile");
+    if (!raw) return;
+    try {
+      const profile = JSON.parse(raw) as { sex?: string };
+      setUserSex(normalizeUserSex(profile.sex));
+    } catch {
+      setUserSex("unknown");
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const syncProfileFromSupabase = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (!userId) return;
+
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select(
+          "name, age_range, weight_range, sex, goal, level, location, equipment, injuries"
+        )
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (!profileRow || !isMounted) return;
+
+      const existingRaw = localStorage.getItem("user_profile");
+      let existing: Record<string, string> = {};
+      if (existingRaw) {
+        try {
+          existing = JSON.parse(existingRaw) as Record<string, string>;
+        } catch {
+          existing = {};
+        }
+      }
+
+      const merged = {
+        ...existing,
+        ...(profileRow.name ? { name: profileRow.name } : {}),
+        ...(profileRow.age_range ? { ageRange: profileRow.age_range } : {}),
+        ...(profileRow.weight_range ? { weightRange: profileRow.weight_range } : {}),
+        ...(profileRow.sex ? { sex: profileRow.sex } : {}),
+        ...(profileRow.goal ? { goal: profileRow.goal } : {}),
+        ...(profileRow.level ? { level: profileRow.level } : {}),
+        ...(profileRow.location ? { location: profileRow.location } : {}),
+        ...(profileRow.equipment ? { equipment: profileRow.equipment } : {}),
+        ...(profileRow.injuries ? { injuries: profileRow.injuries } : {}),
+      };
+
+      localStorage.setItem("user_profile", JSON.stringify(merged));
+    };
+
+    syncProfileFromSupabase();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   function persist(list: Msg[]) {
@@ -280,8 +369,30 @@ export default function CoachPage() {
     ]
       .filter(Boolean)
       .join("\n");
+    const existingRaw = localStorage.getItem("user_profile");
+    let existingProfile: {
+      name?: string;
+      ageRange?: string;
+      weightRange?: string;
+      sex?: string;
+    } = {};
+    if (existingRaw) {
+      try {
+        existingProfile = JSON.parse(existingRaw) as {
+          name?: string;
+          ageRange?: string;
+          weightRange?: string;
+          sex?: string;
+        };
+      } catch {
+        existingProfile = {};
+      }
+    }
     const profileFromAnswers = {
-      name: "",
+      name: existingProfile.name || "",
+      ageRange: existingProfile.ageRange || "21-29",
+      weightRange: existingProfile.weightRange || "61-70 kg",
+      sex: existingProfile.sex || "Homme",
       goal: String(getAnswerDisplay(onboardingAnswers.objectif)),
       level: String(getAnswerDisplay(onboardingAnswers.experience)),
       location: String(getAnswerDisplay(onboardingAnswers.lieu)),
@@ -292,6 +403,24 @@ export default function CoachPage() {
           : "Aucune",
     };
     localStorage.setItem("user_profile", JSON.stringify(profileFromAnswers));
+    setUserSex(normalizeUserSex(profileFromAnswers.sex));
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    if (userId) {
+      await supabase.from("profiles").upsert({
+        id: userId,
+        name: profileFromAnswers.name,
+        age_range: profileFromAnswers.ageRange,
+        weight_range: profileFromAnswers.weightRange,
+        sex: profileFromAnswers.sex,
+        goal: profileFromAnswers.goal,
+        level: profileFromAnswers.level,
+        location: profileFromAnswers.location,
+        equipment: profileFromAnswers.equipment,
+        injuries: profileFromAnswers.injuries,
+        updated_at: new Date().toISOString(),
+      });
+    }
     const userMsg: Msg = { role: "user", content: summary };
     const newMsgs: Msg[] = [...messages, userMsg];
     persist(newMsgs);
@@ -555,11 +684,39 @@ export default function CoachPage() {
       addCategory("Sécurité");
     }
 
+    const detectProductGender = (product: typeof allProducts[number]) => {
+      const hay = normalizeText(
+        `${product.name} ${product.description} ${product.categoryLabel} ${product.badge}`
+      );
+      const isFemale =
+        hay.includes("femme") ||
+        hay.includes("women") ||
+        hay.includes("woman") ||
+        hay.includes("female") ||
+        hay.includes("girls");
+      const isMale =
+        hay.includes("homme") ||
+        hay.includes("men") ||
+        hay.includes("man") ||
+        hay.includes("male") ||
+        hay.includes("boys");
+      if (isFemale && !isMale) return "female";
+      if (isMale && !isFemale) return "male";
+      return "unisex";
+    };
+
+    const allowBySex = (product: typeof allProducts[number]) => {
+      if (userSex === "female") return detectProductGender(product) !== "male";
+      if (userSex === "male") return detectProductGender(product) !== "female";
+      return true;
+    };
+
     const picks: string[] = [];
     const seen = new Set<string>();
     categories.forEach((label) => {
       allProducts
         .filter((p) => normalizeText(p.categoryLabel) === normalizeText(label))
+        .filter(allowBySex)
         .slice(0, 2)
         .forEach((p) => {
           if (seen.has(p.id)) return;

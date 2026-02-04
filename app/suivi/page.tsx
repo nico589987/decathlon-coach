@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 type Session = {
   id: string;
@@ -14,6 +15,9 @@ type Session = {
 
 type Profile = {
   name: string;
+  ageRange: string;
+  weightRange: string;
+  sex: string;
   goal: string;
   level: string;
   location: string;
@@ -27,6 +31,17 @@ const FEEDBACK_LABELS: Record<NonNullable<Session["feedback"]>, string> = {
   dur: "Difficile",
   trop_dur: "Trop dure",
 };
+
+const AGE_OPTIONS = ["16-20", "21-29", "30-39", "40-49", "50-59", "60+"];
+const WEIGHT_OPTIONS = [
+  "<50 kg",
+  "50-60 kg",
+  "61-70 kg",
+  "71-80 kg",
+  "81-90 kg",
+  "90+ kg",
+];
+const SEX_OPTIONS = ["Homme", "Femme", "Autre"];
 
 function parseDurationMinutes(title: string, content: string) {
   const combined = `${title} ${content}`;
@@ -68,17 +83,22 @@ function getSessionType(title: string, content: string) {
   return "mix";
 }
 
+const defaultProfile: Profile = {
+  name: "",
+  ageRange: "21-29",
+  weightRange: "61-70 kg",
+  sex: "Homme",
+  goal: "Remise en forme",
+  level: "Débutant",
+  location: "Maison",
+  equipment: "Tapis, élastiques",
+  injuries: "Aucune",
+};
+
 export default function SuiviPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [weeklyGoal, setWeeklyGoal] = useState(3);
-  const [profile, setProfile] = useState<Profile>({
-    name: "",
-    goal: "Remise en forme",
-    level: "Débutant",
-    location: "Maison",
-    equipment: "Tapis, élastiques",
-    injuries: "Aucune",
-  });
+  const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
   const [equipmentChoices, setEquipmentChoices] = useState<string[]>([]);
@@ -90,7 +110,35 @@ export default function SuiviPage() {
     const goalRaw = localStorage.getItem("weekly_goal");
     if (goalRaw) setWeeklyGoal(Number(goalRaw));
     const profileRaw = localStorage.getItem("user_profile");
-    if (profileRaw) setProfile(JSON.parse(profileRaw));
+    if (profileRaw) {
+      const parsed = JSON.parse(profileRaw);
+      setProfile({ ...defaultProfile, ...parsed });
+    }
+    supabase.auth.getSession().then(async ({ data }) => {
+      const userId = data.session?.user?.id;
+      if (!userId) return;
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select(
+          "name, age_range, weight_range, sex, goal, level, location, equipment, injuries"
+        )
+        .eq("id", userId)
+        .single();
+      if (profileRow) {
+        setProfile({
+          ...defaultProfile,
+          name: profileRow.name || "",
+          ageRange: profileRow.age_range || defaultProfile.ageRange,
+          weightRange: profileRow.weight_range || defaultProfile.weightRange,
+          sex: profileRow.sex || defaultProfile.sex,
+          goal: profileRow.goal || defaultProfile.goal,
+          level: profileRow.level || defaultProfile.level,
+          location: profileRow.location || defaultProfile.location,
+          equipment: profileRow.equipment || defaultProfile.equipment,
+          injuries: profileRow.injuries || defaultProfile.injuries,
+        });
+      }
+    });
   }, []);
 
   const stats = useMemo(() => {
@@ -246,6 +294,23 @@ export default function SuiviPage() {
   function saveProfile(next: Profile) {
     setProfile(next);
     localStorage.setItem("user_profile", JSON.stringify(next));
+    supabase.auth.getSession().then(async ({ data }) => {
+      const userId = data.session?.user?.id;
+      if (!userId) return;
+      await supabase.from("profiles").upsert({
+        id: userId,
+        name: next.name,
+        age_range: next.ageRange,
+        weight_range: next.weightRange,
+        sex: next.sex,
+        goal: next.goal,
+        level: next.level,
+        location: next.location,
+        equipment: next.equipment,
+        injuries: next.injuries,
+        updated_at: new Date().toISOString(),
+      });
+    });
   }
 
 
@@ -889,6 +954,92 @@ export default function SuiviPage() {
           {editingProfile ? (
             <div style={{ display: "grid", gap: 10 }}>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                Prénom
+                <input
+                  value={(profileDraft || profile).name}
+                  onChange={(e) =>
+                    setProfileDraft((prev) => ({
+                      ...(prev || profile),
+                      name: e.target.value,
+                    }))
+                  }
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5f5",
+                  }}
+                />
+              </label>
+              <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                Âge
+                <select
+                  value={(profileDraft || profile).ageRange}
+                  onChange={(e) =>
+                    setProfileDraft((prev) => ({
+                      ...(prev || profile),
+                      ageRange: e.target.value,
+                    }))
+                  }
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5f5",
+                  }}
+                >
+                  {AGE_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                Poids
+                <select
+                  value={(profileDraft || profile).weightRange}
+                  onChange={(e) =>
+                    setProfileDraft((prev) => ({
+                      ...(prev || profile),
+                      weightRange: e.target.value,
+                    }))
+                  }
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5f5",
+                  }}
+                >
+                  {WEIGHT_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                Sexe
+                <select
+                  value={(profileDraft || profile).sex}
+                  onChange={(e) =>
+                    setProfileDraft((prev) => ({
+                      ...(prev || profile),
+                      sex: e.target.value,
+                    }))
+                  }
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5f5",
+                  }}
+                >
+                  {SEX_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
                 Objectif
                 <select
                   value={(profileDraft || profile).goal}
@@ -1098,6 +1249,18 @@ export default function SuiviPage() {
             </div>
           ) : (
             <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
+              <div>
+                Prénom : <strong>{profile.name || "—"}</strong>
+              </div>
+              <div>
+                Âge : <strong>{profile.ageRange}</strong>
+              </div>
+              <div>
+                Poids : <strong>{profile.weightRange}</strong>
+              </div>
+              <div>
+                Sexe : <strong>{profile.sex}</strong>
+              </div>
               <div>
                 Objectif : <strong>{profile.goal}</strong>
               </div>

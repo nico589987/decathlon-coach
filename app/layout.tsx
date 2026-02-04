@@ -15,6 +15,9 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body style={{ margin: 0 }}>
+        <a className="skip-link" href="#main-content">
+          Aller au contenu
+        </a>
         {/* Header */}
         <header
           style={{
@@ -67,6 +70,7 @@ export default function RootLayout({
               <img
                 src="/decathlon-logo.png"
                 alt="Decathlon"
+                decoding="async"
                 style={{
                   height: 24,
                   filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.2))",
@@ -110,11 +114,28 @@ export default function RootLayout({
             >
               DECATHLON
             </div>
+            <a
+              href="/auth"
+              style={{
+                background: "rgba(255,255,255,0.18)",
+                border: "1px solid rgba(255,255,255,0.35)",
+                borderRadius: 999,
+                padding: "8px 14px",
+                color: "white",
+                fontSize: 12,
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              Compte
+            </a>
           </div>
         </header>
 
         {/* Contenu */}
-        <main style={{ paddingBottom: 90 }}>{children}</main>
+        <main id="main-content" style={{ paddingBottom: 90 }}>
+          {children}
+        </main>
 
         {/* Navigation bottom */}
         <BottomNav />

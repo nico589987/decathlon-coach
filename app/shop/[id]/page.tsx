@@ -85,6 +85,7 @@ export default function ProductPage() {
               src={product.image}
               alt={product.name}
               loading="lazy"
+              decoding="async"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
