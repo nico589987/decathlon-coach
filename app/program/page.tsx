@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { products as allProducts } from "../data/decathlon_products";
+import { supabase, supabaseConfigured } from "../lib/supabaseClient";
 
 type Session = {
   id: string;
@@ -37,6 +38,8 @@ function parseSessionLines(content: string) {
 function emojiForItem(_text: string) {
   return "•";
 }
+
+const PROGRAM_UPDATED_KEY = "program_sessions_updated_at";
 
 type UserSex = "female" | "male" | "unknown";
 
@@ -278,10 +281,19 @@ export default function ProgramPage() {
   const [feedbackTarget, setFeedbackTarget] = useState<Session | null>(null);
   const [lastCompletedId, setLastCompletedId] = useState<string | null>(null);
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
+  const [profileInfo, setProfileInfo] = useState<{
+    name: string;
+    goal: string;
+    level: string;
+    location: string;
+  }>({ name: "", goal: "", level: "", location: "" });
   const [userSex, setUserSex] = useState<UserSex>("unknown");
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("program_sessions");
+    const localUpdatedRaw = localStorage.getItem(PROGRAM_UPDATED_KEY);
+    const localUpdatedAt = localUpdatedRaw ? Date.parse(localUpdatedRaw) : 0;
     if (raw) {
       const parsed: Session[] = JSON.parse(raw);
       setSessions(parsed);
@@ -292,6 +304,80 @@ export default function ProgramPage() {
         });
         return next;
       });
+    }
+
+    if (!supabaseConfigured) return;
+
+    const syncFromSupabase = async (userId: string) => {
+      const { data: row } = await supabase
+        .from("user_programs")
+        .select("sessions, updated_at")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!row) return;
+      const remoteUpdatedAt = row.updated_at ? Date.parse(row.updated_at) : 0;
+      if (remoteUpdatedAt > localUpdatedAt) {
+        const remoteSessions = Array.isArray(row.sessions) ? row.sessions : [];
+        setSessions(remoteSessions as Session[]);
+        localStorage.setItem("program_sessions", JSON.stringify(remoteSessions));
+        localStorage.setItem(PROGRAM_UPDATED_KEY, row.updated_at);
+      }
+    };
+
+    let activeUserId: string | null = null;
+
+    supabase.auth.getSession().then(({ data }) => {
+      const userId = data.session?.user?.id || null;
+      activeUserId = userId;
+      setSessionUserId(userId);
+      if (!userId) return;
+      syncFromSupabase(userId);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const userId = session?.user?.id || null;
+      activeUserId = userId;
+      setSessionUserId(userId);
+      if (!userId) return;
+      syncFromSupabase(userId);
+    });
+
+    const interval = setInterval(() => {
+      if (!activeUserId) return;
+      syncFromSupabase(activeUserId);
+    }, 15000);
+
+    const handleFocus = () => {
+      if (!activeUserId) return;
+      syncFromSupabase(activeUserId);
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      sub.subscription.unsubscribe();
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("user_profile");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as {
+        name?: string;
+        goal?: string;
+        level?: string;
+        location?: string;
+      };
+      setProfileInfo({
+        name: parsed.name || "",
+        goal: parsed.goal || "",
+        level: parsed.level || "",
+        location: parsed.location || "",
+      });
+    } catch {
+      setProfileInfo({ name: "", goal: "", level: "", location: "" });
     }
   }, []);
 
@@ -309,6 +395,19 @@ export default function ProgramPage() {
   function save(list: Session[]) {
     setSessions(list);
     localStorage.setItem("program_sessions", JSON.stringify(list));
+    const updatedAt = new Date().toISOString();
+    localStorage.setItem(PROGRAM_UPDATED_KEY, updatedAt);
+    if (!supabaseConfigured || !sessionUserId) return;
+    supabase
+      .from("user_programs")
+      .upsert({
+        id: sessionUserId,
+        sessions: list,
+        updated_at: updatedAt,
+      })
+      .catch(() => {
+        // silent: local storage remains source of truth
+      });
   }
 
   function markDone(s: Session) {
@@ -476,6 +575,28 @@ export default function ProgramPage() {
               transition: "width 300ms ease",
             }}
           />
+        </div>
+      )}
+      {(profileInfo.name || profileInfo.goal || profileInfo.level || profileInfo.location) && (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: "14px 16px",
+            borderRadius: 16,
+            background: "linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%)",
+            border: "1px solid #c7d2fe",
+            display: "grid",
+            gap: 6,
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 14, color: "#1e293b" }}>
+            {profileInfo.name ? `Bon retour, ${profileInfo.name} 👋` : "Ton objectif en un coup d'œil"}
+          </div>
+          <div style={{ fontSize: 12, color: "#475569" }}>
+            {profileInfo.goal ? `Objectif : ${profileInfo.goal}. ` : ""}
+            {profileInfo.level ? `Niveau : ${profileInfo.level}. ` : ""}
+            {profileInfo.location ? `Lieu : ${profileInfo.location}.` : ""}
+          </div>
         </div>
       )}
       <style jsx global>{`

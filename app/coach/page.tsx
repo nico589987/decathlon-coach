@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { products as allProducts } from "../data/decathlon_products";
-import { supabase } from "../lib/supabaseClient";
+import { supabase, supabaseConfigured } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
 type Role = "user" | "assistant";
@@ -34,6 +34,8 @@ type SessionDraft = {
 };
 
 const STORAGE_KEY = "coach_messages_v1";
+const PENDING_KEY = "coach_pending_sessions_v1";
+const COACH_UPDATED_KEY = "coach_messages_updated_at";
 
 function normalizeText(value: string) {
   return value
@@ -93,11 +95,23 @@ function getProfileSummary() {
   }
 }
 
+function getProfileName() {
+  const raw = localStorage.getItem("user_profile");
+  if (!raw) return "";
+  try {
+    const profile = JSON.parse(raw) as { name?: string };
+    return profile.name?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
 export default function CoachPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingSessions, setPendingSessions] = useState<SessionDraft[]>([]);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [onboardingAnswers, setOnboardingAnswers] = useState<
     Record<string, string | string[]>
@@ -115,11 +129,19 @@ export default function CoachPage() {
   // ======================
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
+    const pendingRaw = localStorage.getItem(PENDING_KEY);
     const doneFlag = localStorage.getItem("coach_onboarding_done");
 
     if (raw) {
       const parsed = JSON.parse(raw) as Msg[];
       setMessages(parsed);
+      if (pendingRaw) {
+        try {
+          setPendingSessions(JSON.parse(pendingRaw));
+        } catch {
+          setPendingSessions([]);
+        }
+      }
       if (doneFlag === "true") {
         setOnboardingDone(true);
         setOnboardingStep(onboardingQuestions.length);
@@ -137,12 +159,13 @@ export default function CoachPage() {
       {
         role: "assistant",
         content:
-          "Salut 👋 Je suis ton coach.\nOn va d'abord préciser quelques infos pour que je puisse te proposer un programme vraiment adapté.",
+          `Salut${getProfileName() ? ` ${getProfileName()}` : ""} 👋 Je suis ton coach.\nOn va d'abord préciser quelques infos pour que je puisse te proposer un programme vraiment adapté.`,
       },
     ];
 
     setMessages(init);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
+    localStorage.setItem(PENDING_KEY, JSON.stringify([]));
     localStorage.setItem("coach_onboarding_done", "false");
   }, []);
 
@@ -209,14 +232,31 @@ export default function CoachPage() {
   function persist(list: Msg[]) {
     setMessages(list);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    localStorage.setItem(PENDING_KEY, JSON.stringify(pendingSessions));
+    const updatedAt = new Date().toISOString();
+    localStorage.setItem(COACH_UPDATED_KEY, updatedAt);
+    if (!supabaseConfigured || !sessionUserId) return;
+    supabase
+      .from("user_conversations")
+      .upsert({
+        id: sessionUserId,
+        messages: list,
+        pending_sessions: pendingSessions,
+        onboarding_done: onboardingDone,
+        updated_at: updatedAt,
+      })
+      .catch(() => {
+        // silent: keep local storage as source of truth if network fails
+      });
   }
 
   function newConversation() {
+    const name = getProfileName();
     const init: Msg[] = [
       {
         role: "assistant",
         content:
-          "Nouvelle discussion 👍 On commence par quelques questions rapides.",
+          `Nouvelle discussion 👍${name ? ` Content de te revoir, ${name}.` : ""} On commence par quelques questions rapides.`,
       },
     ];
     setPendingSessions([]);
@@ -226,8 +266,95 @@ export default function CoachPage() {
     setCustomAnswer("");
     setOnboardingDone(false);
     localStorage.setItem("coach_onboarding_done", "false");
+    localStorage.setItem(PENDING_KEY, JSON.stringify([]));
     persist(init);
   }
+
+  useEffect(() => {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(pendingSessions));
+    const updatedAt = new Date().toISOString();
+    localStorage.setItem(COACH_UPDATED_KEY, updatedAt);
+    if (!supabaseConfigured || !sessionUserId) return;
+    supabase
+      .from("user_conversations")
+      .upsert({
+        id: sessionUserId,
+        messages,
+        pending_sessions: pendingSessions,
+        onboarding_done: onboardingDone,
+        updated_at: updatedAt,
+      })
+      .catch(() => {
+        // silent
+      });
+  }, [pendingSessions, onboardingDone, sessionUserId, messages]);
+
+  useEffect(() => {
+    if (!supabaseConfigured) return;
+    const fetchConversation = async (userId: string) => {
+      const { data: row } = await supabase
+        .from("user_conversations")
+        .select("messages, pending_sessions, onboarding_done, updated_at")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const localUpdatedRaw = localStorage.getItem(COACH_UPDATED_KEY);
+      const localUpdatedAt = localUpdatedRaw ? Date.parse(localUpdatedRaw) : 0;
+      const remoteUpdatedAt = row?.updated_at ? Date.parse(row.updated_at) : 0;
+
+      if (row && remoteUpdatedAt > localUpdatedAt) {
+        const remoteMessages = Array.isArray(row.messages) ? row.messages : [];
+        const remotePending = Array.isArray(row.pending_sessions)
+          ? row.pending_sessions
+          : [];
+        setMessages(remoteMessages as Msg[]);
+        setPendingSessions(remotePending as SessionDraft[]);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteMessages));
+        localStorage.setItem(PENDING_KEY, JSON.stringify(remotePending));
+        localStorage.setItem(COACH_UPDATED_KEY, row.updated_at);
+        if (row.onboarding_done) {
+          setOnboardingDone(true);
+          setOnboardingStep(onboardingQuestions.length);
+          localStorage.setItem("coach_onboarding_done", "true");
+        }
+      }
+    };
+
+    let activeUserId: string | null = null;
+
+    supabase.auth.getSession().then(({ data }) => {
+      const userId = data.session?.user?.id || null;
+      activeUserId = userId;
+      setSessionUserId(userId);
+      if (!userId) return;
+      fetchConversation(userId);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const userId = session?.user?.id || null;
+      activeUserId = userId;
+      setSessionUserId(userId);
+      if (!userId) return;
+      fetchConversation(userId);
+    });
+
+    const interval = setInterval(() => {
+      if (!activeUserId) return;
+      fetchConversation(activeUserId);
+    }, 15000);
+
+    const handleFocus = () => {
+      if (!activeUserId) return;
+      fetchConversation(activeUserId);
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      sub.subscription.unsubscribe();
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
 
   // ======================
   // Onboarding questions

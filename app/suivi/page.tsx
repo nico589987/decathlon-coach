@@ -177,22 +177,39 @@ export default function SuiviPage() {
       }
     };
 
+    let activeUserId: string | null = null;
+
     supabase.auth.getSession().then(({ data }) => {
-      const userId = data.session?.user?.id;
-      setSessionUserId(userId || null);
+      const userId = data.session?.user?.id || null;
+      activeUserId = userId;
+      setSessionUserId(userId);
       if (!userId) return;
       fetchProfile(userId);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      const userId = session?.user?.id;
-      setSessionUserId(userId || null);
+      const userId = session?.user?.id || null;
+      activeUserId = userId;
+      setSessionUserId(userId);
       if (!userId) return;
       fetchProfile(userId);
     });
 
+    const interval = setInterval(() => {
+      if (!activeUserId) return;
+      fetchProfile(activeUserId);
+    }, 15000);
+
+    const handleFocus = () => {
+      if (!activeUserId) return;
+      fetchProfile(activeUserId);
+    };
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       sub.subscription.unsubscribe();
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 
@@ -292,6 +309,16 @@ export default function SuiviPage() {
     Math.round((doneThisWeek.length / weeklyGoal) * 100)
   );
 
+  const bestWeek = stats.weekBuckets.reduce(
+    (best, bucket) => (bucket.count > best.count ? bucket : best),
+    stats.weekBuckets[0] || {
+      label: "S1",
+      start: new Date(),
+      end: new Date(),
+      count: 0,
+    }
+  );
+
   const last14Days = Array.from({ length: 14 }).map((_, idx) => {
     const d = new Date();
     d.setDate(d.getDate() - (13 - idx));
@@ -376,7 +403,10 @@ export default function SuiviPage() {
       })
       .then(({ error }) => {
         if (error) {
-          setSyncStatus("Erreur de synchronisation du profil.");
+          console.error("Profile sync error:", error);
+          setSyncStatus(
+            `Erreur de synchronisation du profil (${error.message || "inconnue"}).`
+          );
         } else {
           setSyncStatus("Profil synchronisé ✅");
         }
@@ -414,11 +444,18 @@ export default function SuiviPage() {
             Tableau de bord
           </div>
           <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>
-            Suivi d’activité
+            {profile.name ? `Bonjour ${profile.name}` : "Suivi d’activité"}
           </div>
           <div style={{ color: "#475569", marginTop: 6, fontSize: 14 }}>
-            Tes progrès en un coup d’œil, clairs et motivants.
+            {profile.goal
+              ? `Objectif : ${profile.goal}.`
+              : "Tes progrès en un coup d’œil, clairs et motivants."}
           </div>
+          {profile.level && (
+            <div style={{ color: "#64748b", marginTop: 4, fontSize: 12 }}>
+              Niveau : {profile.level}
+            </div>
+          )}
         </div>
         <div
           style={{
@@ -472,6 +509,24 @@ export default function SuiviPage() {
           </div>
           <div style={{ fontSize: 13, color: "#92400e", marginTop: 6 }}>
             Garde le rythme, tu es sur une belle lancée.
+          </div>
+        </div>
+        <div
+          style={{
+            padding: 20,
+            borderRadius: 18,
+            background: "linear-gradient(135deg, #ecfeff 0%, #e0f2fe 100%)",
+            border: "1px solid #bae6fd",
+          }}
+        >
+          <div style={{ fontSize: 12, color: "#0c4a6e", fontWeight: 700 }}>
+            Records personnels
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, marginTop: 6 }}>
+            {bestWeek.count} séances
+          </div>
+          <div style={{ fontSize: 13, color: "#0c4a6e", marginTop: 6 }}>
+            Meilleure semaine ({bestWeek.label}) · {stats.totalMinutes} min au total
           </div>
         </div>
         <div
