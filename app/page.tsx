@@ -1,4 +1,9 @@
+"use client";
+
+import { useLanguage } from "./lib/useLanguage";
+
 export default function Home() {
+  const { t, lang } = useLanguage();
   const heroGridStyle: React.CSSProperties = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
@@ -61,15 +66,12 @@ export default function Home() {
       >
         <div style={heroGridStyle} className="home-hero-grid">
           <div>
-            <div style={pillStyle}>Ready to play?</div>
+            <div style={pillStyle}>{t.ready}</div>
             <h1 style={{ fontSize: 44, margin: "16px 0 10px", lineHeight: 1.1 }}>
-              Ton coach IA Decathlon,
-              <br />
-              clair, motivant, efficace.
+              {t.homeTitle}
             </h1>
             <p style={{ fontSize: 16, opacity: 0.85, maxWidth: 520 }}>
-              Crée un programme personnalisé en quelques minutes, suis tes séances,
-              et reçois des recommandations produits adaptées à tes objectifs.
+              {t.homeSubtitle}
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
               <a
@@ -81,7 +83,7 @@ export default function Home() {
                   boxShadow: "0 12px 24px rgba(37, 99, 235, 0.35)",
                 }}
               >
-                Démarrer avec le coach
+                {t.startCoach}
               </a>
               <a
                 href="/program"
@@ -92,7 +94,7 @@ export default function Home() {
                   color: "white",
                 }}
               >
-                Voir mon programme
+                {t.viewProgram}
               </a>
             </div>
           </div>
@@ -105,7 +107,7 @@ export default function Home() {
             }}
           >
             <div style={{ fontWeight: 800, marginBottom: 12, color: "#1e293b" }}>
-              Ton parcours en 3 étapes
+              {t.stepsTitle}
             </div>
             <div style={{ display: "grid", gap: 12 }}>
               <div
@@ -121,10 +123,8 @@ export default function Home() {
               >
                 <span style={{ fontSize: 18 }}>🧠</span>
                 <div>
-                  <div style={{ fontWeight: 700 }}>Réponds aux questions</div>
-                  <div style={{ fontSize: 12 }}>
-                    Objectifs, niveau, matériel, contraintes.
-                  </div>
+                  <div style={{ fontWeight: 700 }}>{t.step1Title}</div>
+                  <div style={{ fontSize: 12 }}>{t.step1Desc}</div>
                 </div>
               </div>
               <div
@@ -140,10 +140,8 @@ export default function Home() {
               >
                 <span style={{ fontSize: 18 }}>📘</span>
                 <div>
-                  <div style={{ fontWeight: 700 }}>Programme intelligent</div>
-                  <div style={{ fontSize: 12 }}>
-                    Séances structurées, ajustées selon ton ressenti.
-                  </div>
+                  <div style={{ fontWeight: 700 }}>{t.step2Title}</div>
+                  <div style={{ fontSize: 12 }}>{t.step2Desc}</div>
                 </div>
               </div>
               <div
@@ -159,10 +157,8 @@ export default function Home() {
               >
                 <span style={{ fontSize: 18 }}>🛒</span>
                 <div>
-                  <div style={{ fontWeight: 700 }}>Produits adaptés</div>
-                  <div style={{ fontSize: 12 }}>
-                    Recommandations Decathlon adaptées à tes séances et ton matériel.
-                  </div>
+                  <div style={{ fontWeight: 700 }}>{t.step3Title}</div>
+                  <div style={{ fontSize: 12 }}>{t.step3Desc}</div>
                 </div>
               </div>
             </div>
@@ -173,24 +169,24 @@ export default function Home() {
       <div style={{ marginTop: 26, ...featureGridStyle }} className="home-feature-grid">
         {[
           {
-            title: "Plan clair",
-            desc: "Des séances lisibles et découpées par sections.",
+            title: t.featuresPlan,
+            desc: t.featuresPlanDesc,
           },
           {
-            title: "Suivi motivant",
-            desc: "Marque tes séances effectuées et suis ta progression.",
+            title: t.featuresFollow,
+            desc: t.featuresFollowDesc,
           },
           {
-            title: "Tableau de bord",
-            desc: "Analyse tes performances et ton rythme sur la page Suivi.",
+            title: t.featuresDash,
+            desc: t.featuresDashDesc,
           },
           {
-            title: "Conseils utiles",
-            desc: "Hydratation, récupération, prévention des blessures.",
+            title: t.featuresTips,
+            desc: t.featuresTipsDesc,
           },
           {
-            title: "Boutique ciblée",
-            desc: "Accès rapide aux produits pertinents.",
+            title: t.featuresShop,
+            desc: t.featuresShopDesc,
           },
         ].map((item) => (
           <div
@@ -217,11 +213,26 @@ export default function Home() {
         }}
       >
         {[
-          { label: "Programmes ajustés", value: "IA + ressenti" },
-          { label: "Séances structurées", value: "5 sections" },
-          { label: "Suivi simple", value: "1 clic" },
-          { label: "Progression visible", value: "Suivi" },
-          { label: "Produits ciblés", value: "Decathlon" },
+          {
+            label: lang === "en" ? "Programs adjusted" : "Programmes ajustés",
+            value: lang === "en" ? "AI + feedback" : "IA + ressenti",
+          },
+          {
+            label: lang === "en" ? "Structured sessions" : "Séances structurées",
+            value: "5 sections",
+          },
+          {
+            label: lang === "en" ? "Simple tracking" : "Suivi simple",
+            value: lang === "en" ? "1 tap" : "1 clic",
+          },
+          {
+            label: lang === "en" ? "Visible progress" : "Progression visible",
+            value: t.suivi,
+          },
+          {
+            label: lang === "en" ? "Targeted products" : "Produits ciblés",
+            value: "Decathlon",
+          },
         ].map((stat) => (
           <div key={stat.label}>
             <div style={{ fontWeight: 800, fontSize: 16 }}>{stat.value}</div>
@@ -244,12 +255,8 @@ export default function Home() {
         }}
       >
         <div>
-          <div style={{ fontWeight: 800, fontSize: 18 }}>
-            Prêt à commencer ?
-          </div>
-          <div style={{ color: "#475569", fontSize: 13 }}>
-            Lance une première conversation et reçois ta séance personnalisée.
-          </div>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>{t.ctaTitle}</div>
+          <div style={{ color: "#475569", fontSize: 13 }}>{t.ctaDesc}</div>
         </div>
         <a
           href="/coach"
@@ -259,7 +266,7 @@ export default function Home() {
             color: "white",
           }}
         >
-          Créer mon programme
+          {t.ctaButton}
         </a>
       </div>
     </div>

@@ -1,6 +1,8 @@
 ﻿import "./globals.css";
 import type { ReactNode } from "react";
 import BottomNav from "./components/BottomNav";
+import LanguageToggle from "./components/LanguageToggle";
+import LanguageText from "./components/LanguageText";
 
 export const metadata = {
   title: "Decathlon Coach",
@@ -16,7 +18,7 @@ export default function RootLayout({
     <html lang="fr">
       <body style={{ margin: 0 }}>
         <a className="skip-link" href="#main-content">
-          Aller au contenu
+          <LanguageText id="skip" fallback="Aller au contenu" />
         </a>
         {/* Header */}
         <header
@@ -84,7 +86,7 @@ export default function RootLayout({
                   letterSpacing: 0.2,
                 }}
               >
-                Coach
+                <LanguageText id="coach" fallback="Coach" />
               </span>
             </div>
             <span
@@ -94,7 +96,7 @@ export default function RootLayout({
                 fontWeight: 600,
               }}
             >
-              Ready to play?
+              <LanguageText id="ready" fallback="Ready to play?" />
             </span>
           </div>
 
@@ -114,6 +116,7 @@ export default function RootLayout({
             >
               DECATHLON
             </div>
+            <LanguageToggle />
             <a
               href="/auth"
               style={{
@@ -127,7 +130,7 @@ export default function RootLayout({
                 textDecoration: "none",
               }}
             >
-              Compte
+              <LanguageText id="account" fallback="Compte" />
             </a>
           </div>
         </header>

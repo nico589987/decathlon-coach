@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase, supabaseConfigured } from "../lib/supabaseClient";
+import { useLanguage } from "../lib/useLanguage";
 
 type Session = {
   id: string;
@@ -23,13 +24,6 @@ type Profile = {
   location: string;
   equipment: string;
   injuries: string;
-};
-
-const FEEDBACK_LABELS: Record<NonNullable<Session["feedback"]>, string> = {
-  facile: "Facile",
-  ok: "Correcte",
-  dur: "Difficile",
-  trop_dur: "Trop dure",
 };
 
 const SEX_OPTIONS = ["Homme", "Femme", "Autre"];
@@ -74,6 +68,59 @@ function getSessionType(title: string, content: string) {
   return "mix";
 }
 
+function translateProfileValue(
+  lang: "fr" | "en",
+  type: "goal" | "level" | "location" | "equipment" | "injuries" | "sex",
+  value: string
+) {
+  if (lang === "fr") return value;
+  const map: Record<string, Record<string, string>> = {
+    goal: {
+      "Perte de poids": "Weight loss",
+      "Remise en forme": "Get back in shape",
+      Performance: "Performance",
+      "Bien-être": "Well-being",
+    },
+    level: {
+      Débutant: "Beginner",
+      Intermédiaire: "Intermediate",
+      Avancé: "Advanced",
+    },
+    location: {
+      Maison: "Home",
+      Salle: "Gym",
+      Extérieur: "Outdoor",
+      Mix: "Mixed",
+    },
+    equipment: {
+      Tapis: "Mat",
+      "Élastiques": "Bands",
+      Haltères: "Dumbbells",
+      "Corde à sauter": "Jump rope",
+      Aucun: "None",
+    },
+    injuries: {
+      Aucune: "None",
+      Genou: "Knee",
+      Dos: "Back",
+      Épaules: "Shoulders",
+      Autre: "Other",
+    },
+    sex: {
+      Homme: "Male",
+      Femme: "Female",
+      Autre: "Other",
+    },
+  };
+  if (type === "equipment") {
+    return value
+      .split(",")
+      .map((part) => map.equipment[part.trim()] || part.trim())
+      .join(", ");
+  }
+  return map[type][value] || value;
+}
+
 function parseLegacyWeight(value?: string) {
   if (!value) return null;
   const match = value.match(/(\d+)\s*kg/);
@@ -96,6 +143,8 @@ const defaultProfile: Profile = {
 const PROFILE_UPDATED_KEY = "user_profile_updated_at";
 
 export default function SuiviPage() {
+  const { lang } = useLanguage();
+  const dateLocale = lang === "en" ? "en-US" : "fr-FR";
   const [sessions, setSessions] = useState<Session[]>([]);
   const [weeklyGoal, setWeeklyGoal] = useState(3);
   const [profile, setProfile] = useState<Profile>(defaultProfile);
@@ -351,10 +400,22 @@ export default function SuiviPage() {
   );
 
   const achievements = [
-    { label: "Première séance", done: stats.doneCount >= 1 },
-    { label: "3 séances réalisées", done: stats.doneCount >= 3 },
-    { label: "7 séances réalisées", done: stats.doneCount >= 7 },
-    { label: "Streak 5 jours", done: stats.streak >= 5 },
+    {
+      label: lang === "en" ? "First session" : "Première séance",
+      done: stats.doneCount >= 1,
+    },
+    {
+      label: lang === "en" ? "3 sessions completed" : "3 séances réalisées",
+      done: stats.doneCount >= 3,
+    },
+    {
+      label: lang === "en" ? "7 sessions completed" : "7 séances réalisées",
+      done: stats.doneCount >= 7,
+    },
+    {
+      label: lang === "en" ? "5-day streak" : "Streak 5 jours",
+      done: stats.streak >= 5,
+    },
   ];
 
   const trend = (() => {
@@ -389,11 +450,19 @@ export default function SuiviPage() {
     localStorage.setItem("user_profile", JSON.stringify(next));
     localStorage.setItem(PROFILE_UPDATED_KEY, updatedAt);
     if (!supabaseConfigured) {
-      setSyncStatus("Profil mis à jour localement (Supabase non configuré).");
+      setSyncStatus(
+        lang === "en"
+          ? "Profile updated locally (Supabase not configured)."
+          : "Profil mis à jour localement (Supabase non configuré)."
+      );
       return;
     }
     if (!sessionUserId) {
-      setSyncStatus("Connecte-toi pour synchroniser ton profil.");
+      setSyncStatus(
+        lang === "en"
+          ? "Sign in to sync your profile."
+          : "Connecte-toi pour synchroniser ton profil."
+      );
       return;
     }
     supabase
@@ -415,10 +484,12 @@ export default function SuiviPage() {
         if (error) {
           console.error("Profile sync error:", error);
           setSyncStatus(
-            `Erreur de synchronisation du profil (${error.message || "inconnue"}).`
+            lang === "en"
+              ? `Profile sync error (${error.message || "unknown"}).`
+              : `Erreur de synchronisation du profil (${error.message || "inconnue"}).`
           );
         } else {
-          setSyncStatus("Profil synchronisé ✅");
+          setSyncStatus(lang === "en" ? "Profile synced ✅" : "Profil synchronisé ✅");
         }
       });
   }
@@ -451,19 +522,30 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-            Tableau de bord
+            {lang === "en" ? "Dashboard" : "Tableau de bord"}
           </div>
           <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>
-            {profile.name ? `Bonjour ${profile.name}` : "Suivi d’activité"}
+            {profile.name
+              ? `${lang === "en" ? "Hello" : "Bonjour"} ${profile.name}`
+              : lang === "en"
+              ? "Activity tracking"
+              : "Suivi d’activité"}
           </div>
           <div style={{ color: "#475569", marginTop: 6, fontSize: 14 }}>
             {profile.goal
-              ? `Objectif : ${profile.goal}.`
+              ? `${lang === "en" ? "Goal" : "Objectif"} : ${translateProfileValue(
+                  lang,
+                  "goal",
+                  profile.goal
+                )}.`
+              : lang === "en"
+              ? "Your progress at a glance, clear and motivating."
               : "Tes progrès en un coup d’œil, clairs et motivants."}
           </div>
           {profile.level && (
             <div style={{ color: "#64748b", marginTop: 4, fontSize: 12 }}>
-              Niveau : {profile.level}
+              {lang === "en" ? "Level" : "Niveau"} :{" "}
+              {translateProfileValue(lang, "level", profile.level)}
             </div>
           )}
         </div>
@@ -477,13 +559,15 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontSize: 12, opacity: 0.9, fontWeight: 600 }}>
-            Taux de complétion
+            {lang === "en" ? "Completion rate" : "Taux de complétion"}
           </div>
           <div style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>
             {stats.completion}%
           </div>
           <div style={{ marginTop: 8, fontSize: 13, opacity: 0.9 }}>
-            {stats.doneCount} séances faites / {stats.total} prévues
+            {lang === "en"
+              ? `${stats.doneCount} sessions done / ${stats.total} planned`
+              : `${stats.doneCount} séances faites / ${stats.total} prévues`}
           </div>
           <div
             style={{
@@ -512,13 +596,15 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontSize: 12, color: "#92400e", fontWeight: 700 }}>
-            Streak en cours
+            {lang === "en" ? "Current streak" : "Streak en cours"}
           </div>
           <div style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>
-            {stats.streak} jours
+            {stats.streak} {lang === "en" ? "days" : "jours"}
           </div>
           <div style={{ fontSize: 13, color: "#92400e", marginTop: 6 }}>
-            Garde le rythme, tu es sur une belle lancée.
+            {lang === "en"
+              ? "Keep the rhythm, you're on a great streak."
+              : "Garde le rythme, tu es sur une belle lancée."}
           </div>
         </div>
         <div
@@ -530,13 +616,15 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontSize: 12, color: "#0c4a6e", fontWeight: 700 }}>
-            Records personnels
+            {lang === "en" ? "Personal bests" : "Records personnels"}
           </div>
           <div style={{ fontSize: 26, fontWeight: 800, marginTop: 6 }}>
-            {bestWeek.count} séances
+            {bestWeek.count} {lang === "en" ? "sessions" : "séances"}
           </div>
           <div style={{ fontSize: 13, color: "#0c4a6e", marginTop: 6 }}>
-            Meilleure semaine ({bestWeek.label}) · {stats.totalMinutes} min au total
+            {lang === "en"
+              ? `Best week (${bestWeek.label}) · ${stats.totalMinutes} min total`
+              : `Meilleure semaine (${bestWeek.label}) · ${stats.totalMinutes} min au total`}
           </div>
         </div>
         <div
@@ -549,13 +637,15 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontSize: 12, color: "#15803d", fontWeight: 700 }}>
-            Objectif hebdo
+            {lang === "en" ? "Weekly goal" : "Objectif hebdo"}
           </div>
           <div style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>
             {doneThisWeek.length}/{weeklyGoal}
           </div>
           <div style={{ fontSize: 13, color: "#166534", marginTop: 6 }}>
-            Séances réalisées cette semaine
+            {lang === "en"
+              ? "Sessions completed this week"
+              : "Séances réalisées cette semaine"}
           </div>
           <div
             style={{
@@ -580,7 +670,7 @@ export default function SuiviPage() {
                   cursor: "pointer",
                 }}
               >
-                {value}/sem
+                {lang === "en" ? `${value}/wk` : `${value}/sem`}
               </button>
             ))}
           </div>
@@ -620,7 +710,7 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontWeight: 800, marginBottom: 12 }}>
-            Activité sur 6 semaines
+            {lang === "en" ? "Activity over 6 weeks" : "Activité sur 6 semaines"}
           </div>
           <div
             style={{
@@ -659,7 +749,8 @@ export default function SuiviPage() {
             ))}
           </div>
           <div style={{ marginTop: 12, fontSize: 13, color: "#475569" }}>
-            Total minutes effectuées : <strong>{stats.totalMinutes} min</strong>
+            {lang === "en" ? "Total minutes completed" : "Total minutes effectuées"} :{" "}
+            <strong>{stats.totalMinutes} min</strong>
           </div>
         </div>
 
@@ -674,7 +765,9 @@ export default function SuiviPage() {
             gap: 12,
           }}
         >
-          <div style={{ fontWeight: 800 }}>Ressenti des séances</div>
+          <div style={{ fontWeight: 800 }}>
+            {lang === "en" ? "Session feedback" : "Ressenti des séances"}
+          </div>
           {Object.entries(stats.feedbackCounts).map(([key, value]) => (
             <div key={key}>
               <div
@@ -687,7 +780,19 @@ export default function SuiviPage() {
                 }}
               >
                 <span>
-                  {FEEDBACK_LABELS[key as keyof typeof FEEDBACK_LABELS]}
+                  {lang === "en"
+                    ? ({
+                        facile: "Easy",
+                        ok: "OK",
+                        dur: "Hard",
+                        trop_dur: "Too hard",
+                      } as Record<string, string>)[key] || key
+                    : ({
+                        facile: "Facile",
+                        ok: "Correcte",
+                        dur: "Difficile",
+                        trop_dur: "Trop dure",
+                      } as Record<string, string>)[key] || key}
                 </span>
                 <strong>{value}</strong>
               </div>
@@ -724,7 +829,7 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontWeight: 800, marginBottom: 12 }}>
-            Rythme sur 14 jours
+            {lang === "en" ? "Rhythm over 14 days" : "Rythme sur 14 jours"}
           </div>
           <div
             style={{
@@ -739,7 +844,7 @@ export default function SuiviPage() {
               return (
                 <div
                   key={key}
-                  title={day.toLocaleDateString("fr-FR")}
+                  title={day.toLocaleDateString(dateLocale)}
                   style={{
                     width: "100%",
                     paddingBottom: "100%",
@@ -756,7 +861,9 @@ export default function SuiviPage() {
             })}
           </div>
           <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-            Chaque carré correspond à une journée (plein = séance réalisée).
+            {lang === "en"
+              ? "Each square is a day (filled = session completed)."
+              : "Chaque carré correspond à une journée (plein = séance réalisée)."}
           </div>
         </div>
 
@@ -769,17 +876,25 @@ export default function SuiviPage() {
             padding: 20,
           }}
         >
-          <div style={{ fontWeight: 800, marginBottom: 10 }}>Tendance</div>
+          <div style={{ fontWeight: 800, marginBottom: 10 }}>
+            {lang === "en" ? "Trend" : "Tendance"}
+          </div>
           <div style={{ fontSize: 28, fontWeight: 800 }}>
             {trend >= 0 ? "+" : ""}
             {trend}
           </div>
           <div style={{ color: "#475569", fontSize: 13 }}>
-            séances sur les 2 dernières semaines
+            {lang === "en"
+              ? "sessions over the last 2 weeks"
+              : "séances sur les 2 dernières semaines"}
           </div>
           <div style={{ marginTop: 10, fontSize: 13, color: "#1e293b" }}>
             {trend >= 0
-              ? "Ton rythme progresse. Continue comme ça !"
+              ? lang === "en"
+                ? "You're progressing. Keep it up!"
+                : "Ton rythme progresse. Continue comme ça !"
+              : lang === "en"
+              ? "Slowdown detected, ease back in."
               : "Ralentissement détecté, reprends doucement."}
           </div>
         </div>
@@ -802,7 +917,7 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontWeight: 800, marginBottom: 12 }}>
-            Prochaine séance
+            {lang === "en" ? "Next session" : "Prochaine séance"}
           </div>
           {stats.nextSession ? (
             <div>
@@ -815,7 +930,9 @@ export default function SuiviPage() {
             </div>
           ) : (
             <div style={{ color: "#94a3b8", fontSize: 13 }}>
-              Aucune séance planifiée pour l’instant.
+              {lang === "en"
+                ? "No session planned yet."
+                : "Aucune séance planifiée pour l’instant."}
             </div>
           )}
         </div>
@@ -830,7 +947,7 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontWeight: 800, marginBottom: 12 }}>
-            Dernière séance effectuée
+            {lang === "en" ? "Last completed session" : "Dernière séance effectuée"}
           </div>
           {stats.lastDone ? (
             <div>
@@ -838,17 +955,19 @@ export default function SuiviPage() {
                 {stats.lastDone.title}
               </div>
               <div style={{ marginTop: 6, color: "#475569", fontSize: 13 }}>
-                Fait le{" "}
+                {lang === "en" ? "Done on" : "Fait le"}{" "}
                 {stats.lastDone.completedAt
                   ? new Date(stats.lastDone.completedAt).toLocaleDateString(
-                      "fr-FR"
+                      dateLocale
                     )
                   : "—"}
               </div>
             </div>
           ) : (
             <div style={{ color: "#94a3b8", fontSize: 13 }}>
-              Pas encore de séance effectuée.
+              {lang === "en"
+                ? "No session completed yet."
+                : "Pas encore de séance effectuée."}
             </div>
           )}
         </div>
@@ -863,14 +982,26 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontWeight: 800, marginBottom: 12 }}>
-            Répartition des séances
+            {lang === "en" ? "Session breakdown" : "Répartition des séances"}
           </div>
           {(
             [
-              ["course", "Course à pied", "#16a34a"],
-              ["renfo", "Renforcement", "#2563eb"],
-              ["mobilite", "Mobilité", "#f59e0b"],
-              ["mix", "Mix", "#7c3aed"],
+              [
+                "course",
+                lang === "en" ? "Running" : "Course à pied",
+                "#16a34a",
+              ],
+              [
+                "renfo",
+                lang === "en" ? "Strength" : "Renforcement",
+                "#2563eb",
+              ],
+              [
+                "mobilite",
+                lang === "en" ? "Mobility" : "Mobilité",
+                "#f59e0b",
+              ],
+              ["mix", lang === "en" ? "Mixed" : "Mix", "#7c3aed"],
             ] as const
           ).map(([key, label, color]) => {
             const count = typeCounts[key];
@@ -930,7 +1061,7 @@ export default function SuiviPage() {
           }}
         >
           <div style={{ fontWeight: 800, marginBottom: 12 }}>
-            Dernières séances
+            {lang === "en" ? "Recent sessions" : "Dernières séances"}
           </div>
           {[...stats.done]
             .sort(
@@ -953,14 +1084,16 @@ export default function SuiviPage() {
                 <div style={{ fontSize: 14, fontWeight: 700 }}>{s.title}</div>
                 <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
                   {s.completedAt
-                    ? new Date(s.completedAt).toLocaleDateString("fr-FR")
+                    ? new Date(s.completedAt).toLocaleDateString(dateLocale)
                     : "—"}
                 </div>
               </div>
             ))}
           {stats.done.length === 0 && (
             <div style={{ color: "#94a3b8", fontSize: 13 }}>
-              Aucune séance réalisée pour l’instant.
+              {lang === "en"
+                ? "No session completed yet."
+                : "Aucune séance réalisée pour l’instant."}
             </div>
           )}
         </div>
@@ -974,7 +1107,9 @@ export default function SuiviPage() {
             padding: 20,
           }}
         >
-          <div style={{ fontWeight: 800, marginBottom: 12 }}>Succès</div>
+          <div style={{ fontWeight: 800, marginBottom: 12 }}>
+            {lang === "en" ? "Achievements" : "Succès"}
+          </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {achievements.map((badge) => (
               <span
@@ -1003,7 +1138,9 @@ export default function SuiviPage() {
             padding: 20,
           }}
         >
-          <div style={{ fontWeight: 800, marginBottom: 12 }}>Calendrier</div>
+          <div style={{ fontWeight: 800, marginBottom: 12 }}>
+            {lang === "en" ? "Calendar" : "Calendrier"}
+          </div>
           <div
             style={{
               display: "grid",
@@ -1014,7 +1151,9 @@ export default function SuiviPage() {
               marginBottom: 8,
             }}
           >
-            {"L M M J V S D".split(" ").map((d, idx) => (
+            {(lang === "en" ? "M T W T F S S" : "L M M J V S D")
+              .split(" ")
+              .map((d, idx) => (
               <div key={`${d}-${idx}`} style={{ textAlign: "center" }}>
                 {d}
               </div>
@@ -1072,7 +1211,9 @@ export default function SuiviPage() {
             })()}
           </div>
           <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-            Bleu = séance faite, gris pointillé = planifiée.
+            {lang === "en"
+              ? "Blue = done, dashed gray = planned."
+              : "Bleu = séance faite, gris pointillé = planifiée."}
           </div>
         </div>
 
@@ -1085,11 +1226,13 @@ export default function SuiviPage() {
             padding: 20,
           }}
         >
-          <div style={{ fontWeight: 800, marginBottom: 12 }}>Profil</div>
+          <div style={{ fontWeight: 800, marginBottom: 12 }}>
+            {lang === "en" ? "Profile" : "Profil"}
+          </div>
           {editingProfile ? (
             <div style={{ display: "grid", gap: 10 }}>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Prénom
+                {lang === "en" ? "First name" : "Prénom"}
                 <input
                   value={(profileDraft || profile).name}
                   onChange={(e) =>
@@ -1106,7 +1249,7 @@ export default function SuiviPage() {
                 />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Date de naissance
+                {lang === "en" ? "Birth date" : "Date de naissance"}
                 <input
                   type="date"
                   value={(profileDraft || profile).birthDate}
@@ -1124,7 +1267,7 @@ export default function SuiviPage() {
                 />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Poids
+                {lang === "en" ? "Weight (kg)" : "Poids"}
                 <input
                   type="number"
                   min={30}
@@ -1144,7 +1287,7 @@ export default function SuiviPage() {
                 />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Sexe
+                {lang === "en" ? "Sex" : "Sexe"}
                 <select
                   value={(profileDraft || profile).sex}
                   onChange={(e) =>
@@ -1161,13 +1304,13 @@ export default function SuiviPage() {
                 >
                   {SEX_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
-                      {opt}
+                      {translateProfileValue(lang, "sex", opt)}
                     </option>
                   ))}
                 </select>
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Objectif
+                {lang === "en" ? "Goal" : "Objectif"}
                 <select
                   value={(profileDraft || profile).goal}
                   onChange={(e) =>
@@ -1189,13 +1332,13 @@ export default function SuiviPage() {
                     "Bien-être",
                   ].map((opt) => (
                     <option key={opt} value={opt}>
-                      {opt}
+                      {translateProfileValue(lang, "goal", opt)}
                     </option>
                   ))}
                 </select>
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Niveau
+                {lang === "en" ? "Level" : "Niveau"}
                 <select
                   value={(profileDraft || profile).level}
                   onChange={(e) =>
@@ -1212,13 +1355,13 @@ export default function SuiviPage() {
                 >
                   {["Débutant", "Intermédiaire", "Avancé"].map((opt) => (
                     <option key={opt} value={opt}>
-                      {opt}
+                      {translateProfileValue(lang, "level", opt)}
                     </option>
                   ))}
                 </select>
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Lieu
+                {lang === "en" ? "Location" : "Lieu"}
                 <select
                   value={(profileDraft || profile).location}
                   onChange={(e) =>
@@ -1235,13 +1378,13 @@ export default function SuiviPage() {
                 >
                   {["Maison", "Salle", "Extérieur", "Mix"].map((opt) => (
                     <option key={opt} value={opt}>
-                      {opt}
+                      {translateProfileValue(lang, "location", opt)}
                     </option>
                   ))}
                 </select>
               </label>
               <div style={{ fontSize: 12 }}>
-                Matériel
+                {lang === "en" ? "Equipment" : "Matériel"}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
                   {[
                     "Tapis",
@@ -1272,14 +1415,14 @@ export default function SuiviPage() {
                           cursor: "pointer",
                         }}
                       >
-                        {opt}
+                        {translateProfileValue(lang, "equipment", opt)}
                       </button>
                     );
                   })}
                 </div>
               </div>
               <div style={{ fontSize: 12 }}>
-                Blessures
+                {lang === "en" ? "Injuries" : "Blessures"}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
                   {["Aucune", "Genou", "Dos", "Épaules", "Autre"].map((opt) => (
                     <button
@@ -1307,7 +1450,7 @@ export default function SuiviPage() {
                         cursor: "pointer",
                       }}
                     >
-                      {opt}
+                      {translateProfileValue(lang, "injuries", opt)}
                     </button>
                   ))}
                 </div>
@@ -1352,7 +1495,7 @@ export default function SuiviPage() {
                     cursor: "pointer",
                   }}
                 >
-                  Enregistrer
+                  {lang === "en" ? "Save" : "Enregistrer"}
                 </button>
                 <button
                   onClick={() => {
@@ -1370,38 +1513,52 @@ export default function SuiviPage() {
                     cursor: "pointer",
                   }}
                 >
-                  Annuler
+                  {lang === "en" ? "Cancel" : "Annuler"}
                 </button>
               </div>
             </div>
           ) : (
             <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
               <div>
-                Prénom : <strong>{profile.name || "—"}</strong>
+                {lang === "en" ? "First name" : "Prénom"} : <strong>{profile.name || "—"}</strong>
               </div>
               <div>
-                Date de naissance : <strong>{profile.birthDate || "—"}</strong>
+                {lang === "en" ? "Birth date" : "Date de naissance"} :{" "}
+                <strong>{profile.birthDate || "—"}</strong>
               </div>
               <div>
-                Poids : <strong>{profile.weightKg ? `${profile.weightKg} kg` : "—"}</strong>
+                {lang === "en" ? "Weight" : "Poids"} :{" "}
+                <strong>{profile.weightKg ? `${profile.weightKg} kg` : "—"}</strong>
               </div>
               <div>
-                Sexe : <strong>{profile.sex}</strong>
+                {lang === "en" ? "Sex" : "Sexe"} :{" "}
+                <strong>{translateProfileValue(lang, "sex", profile.sex)}</strong>
               </div>
               <div>
-                Objectif : <strong>{profile.goal}</strong>
+                {lang === "en" ? "Goal" : "Objectif"} :{" "}
+                <strong>{translateProfileValue(lang, "goal", profile.goal)}</strong>
               </div>
               <div>
-                Niveau : <strong>{profile.level}</strong>
+                {lang === "en" ? "Level" : "Niveau"} :{" "}
+                <strong>{translateProfileValue(lang, "level", profile.level)}</strong>
               </div>
               <div>
-                Lieu : <strong>{profile.location}</strong>
+                {lang === "en" ? "Location" : "Lieu"} :{" "}
+                <strong>
+                  {translateProfileValue(lang, "location", profile.location)}
+                </strong>
               </div>
               <div>
-                Matériel : <strong>{profile.equipment}</strong>
+                {lang === "en" ? "Equipment" : "Matériel"} :{" "}
+                <strong>
+                  {translateProfileValue(lang, "equipment", profile.equipment)}
+                </strong>
               </div>
               <div>
-                Blessures : <strong>{profile.injuries}</strong>
+                {lang === "en" ? "Injuries" : "Blessures"} :{" "}
+                <strong>
+                  {translateProfileValue(lang, "injuries", profile.injuries)}
+                </strong>
               </div>
               <button
                 onClick={() => {
@@ -1423,10 +1580,16 @@ export default function SuiviPage() {
                   cursor: "pointer",
                 }}
               >
-                Modifier
+                {lang === "en" ? "Edit" : "Modifier"}
               </button>
               <div style={{ fontSize: 12, color: "#64748b" }}>
-                {sessionUserId ? "Compte connecté" : "Compte non connecté"}
+                {sessionUserId
+                  ? lang === "en"
+                    ? "Account connected"
+                    : "Compte connecté"
+                  : lang === "en"
+                  ? "Account not connected"
+                  : "Compte non connecté"}
                 {syncStatus ? ` · ${syncStatus}` : ""}
               </div>
               {!sessionUserId && (
@@ -1439,7 +1602,9 @@ export default function SuiviPage() {
                     textDecoration: "none",
                   }}
                 >
-                  Se connecter pour synchroniser
+                  {lang === "en"
+                    ? "Sign in to sync"
+                    : "Se connecter pour synchroniser"}
                 </a>
               )}
             </div>

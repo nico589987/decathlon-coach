@@ -11,6 +11,7 @@ import {
 import { products as allProducts } from "../data/decathlon_products";
 import { supabase, supabaseConfigured } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "../lib/useLanguage";
 
 type Role = "user" | "assistant";
 
@@ -118,6 +119,7 @@ function getProfileName() {
 }
 
 export default function CoachPage() {
+  const { t, lang } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -170,7 +172,7 @@ export default function CoachPage() {
       {
         role: "assistant",
         content:
-          `Salut${getProfileName() ? ` ${getProfileName()}` : ""} 👋 Je suis ton coach.\nOn va d'abord préciser quelques infos pour que je puisse te proposer un programme vraiment adapté.`,
+          `${lang === "en" ? "Hi" : "Salut"}${getProfileName() ? ` ${getProfileName()}` : ""} 👋 ${lang === "en" ? "I'm your coach." : "Je suis ton coach."}\n${lang === "en" ? "Let's clarify a few details so I can build a plan tailored to you." : "On va d'abord préciser quelques infos pour que je puisse te proposer un programme vraiment adapté."}`,
       },
     ];
 
@@ -269,7 +271,7 @@ export default function CoachPage() {
       {
         role: "assistant",
         content:
-          `Nouvelle discussion 👍${name ? ` Content de te revoir, ${name}.` : ""} On commence par quelques questions rapides.`,
+          `${lang === "en" ? "New chat" : "Nouvelle discussion"} 👍${name ? ` ${lang === "en" ? "Nice to see you again" : "Content de te revoir"}, ${name}.` : ""} ${lang === "en" ? "We'll start with a few quick questions." : "On commence par quelques questions rapides."}`,
       },
     ];
     setPendingSessions([]);
@@ -372,51 +374,98 @@ export default function CoachPage() {
   // ======================
   // Onboarding questions
   // ======================
-  const onboardingQuestions = [
-    {
-      id: "objectif",
-      label: "Quel est ton objectif principal ?",
-      options: [
-        "Perte de poids",
-        "Remise en forme",
-        "Performance",
-        "Bien-être",
-        "Autre",
-      ],
-    },
-    {
-      id: "experience",
-      label: "Quel est ton niveau actuel ?",
-      options: ["Débutant", "Intermédiaire", "Avancé", "Retour après pause"],
-    },
-    {
-      id: "injuries",
-      label: "As-tu des blessures ou antécédents médicaux à signaler ?",
-      options: ["Non", "Oui"],
-    },
-    {
-      id: "lieu",
-      label: "Où t'entraînes-tu le plus souvent ?",
-      options: ["Maison", "Salle", "Extérieur", "Mixte", "Autre"],
-    },
-    {
-      id: "materiel",
-      label: "Quel matériel as-tu à disposition ?",
-      options: [
-        "Aucun",
-        "Tapis / élastiques",
-        "Haltères",
-        "Vélo / tapis de course",
-        "Mixte",
-        "Autre",
-      ],
-    },
-    {
-      id: "rythme",
-      label: "Combien de séances par semaine veux-tu faire ?",
-      options: ["1", "2", "3", "4+", "Variable"],
-    },
-  ];
+  const onboardingQuestions =
+    lang === "en"
+      ? [
+          {
+            id: "objectif",
+            label: "What is your main goal?",
+            options: [
+              "Weight loss",
+              "Get back in shape",
+              "Performance",
+              "Well-being",
+              "Other",
+            ],
+          },
+          {
+            id: "experience",
+            label: "What is your current level?",
+            options: ["Beginner", "Intermediate", "Advanced", "Return after break"],
+          },
+          {
+            id: "injuries",
+            label: "Do you have any injuries or medical history to mention?",
+            options: ["No", "Yes"],
+          },
+          {
+            id: "lieu",
+            label: "Where do you train most often?",
+            options: ["Home", "Gym", "Outdoor", "Mixed", "Other"],
+          },
+          {
+            id: "materiel",
+            label: "What equipment do you have?",
+            options: [
+              "None",
+              "Mat / bands",
+              "Dumbbells",
+              "Bike / treadmill",
+              "Mixed",
+              "Other",
+            ],
+          },
+          {
+            id: "rythme",
+            label: "How many sessions per week do you want?",
+            options: ["1", "2", "3", "4+", "Variable"],
+          },
+        ]
+      : [
+          {
+            id: "objectif",
+            label: "Quel est ton objectif principal ?",
+            options: [
+              "Perte de poids",
+              "Remise en forme",
+              "Performance",
+              "Bien-être",
+              "Autre",
+            ],
+          },
+          {
+            id: "experience",
+            label: "Quel est ton niveau actuel ?",
+            options: ["Débutant", "Intermédiaire", "Avancé", "Retour après pause"],
+          },
+          {
+            id: "injuries",
+            label: "As-tu des blessures ou antécédents médicaux à signaler ?",
+            options: ["Non", "Oui"],
+          },
+          {
+            id: "lieu",
+            label: "Où t'entraînes-tu le plus souvent ?",
+            options: ["Maison", "Salle", "Extérieur", "Mixte", "Autre"],
+          },
+          {
+            id: "materiel",
+            label: "Quel matériel as-tu à disposition ?",
+            options: [
+              "Aucun",
+              "Tapis / élastiques",
+              "Haltères",
+              "Vélo / tapis de course",
+              "Mixte",
+              "Autre",
+            ],
+          },
+          {
+            id: "rythme",
+            label: "Combien de séances par semaine veux-tu faire ?",
+            options: ["1", "2", "3", "4+", "Variable"],
+          },
+        ];
 
   const activeQuestion = onboardingQuestions[onboardingStep];
   const multiSelectIds = new Set(["materiel"]);
@@ -633,6 +682,7 @@ export default function CoachPage() {
           messages: newMsgs,
           feedbackSummary: feedbackContext,
           profileSummary: getProfileSummary(),
+          language: lang,
         }),
       });
       const data = await res.json();
@@ -951,6 +1001,7 @@ export default function CoachPage() {
           messages: newMsgs,
           feedbackSummary: feedbackContext,
           profileSummary: getProfileSummary(),
+          language: lang,
         }),
       });
 
@@ -1262,7 +1313,7 @@ export default function CoachPage() {
           {matched?.products?.length ? (
             <div style={{ marginTop: 10 }}>
               <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                Produits suggérés
+                {lang === "en" ? "Suggested products" : "Produits suggérés"}
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {resolveProducts(matched.products).map((p) => (
@@ -1301,7 +1352,7 @@ export default function CoachPage() {
                 fontWeight: 600,
               }}
             >
-              Ajouter cette séance
+              {lang === "en" ? "Add this session" : "Ajouter cette séance"}
             </button>
           )}
         </div>
@@ -1424,7 +1475,7 @@ export default function CoachPage() {
             boxShadow: "0 8px 16px rgba(60,70,184,0.3)",
           }}
         >
-          Nouvelle conversation
+          {lang === "en" ? "New chat" : "Nouvelle conversation"}
         </button>
       </div>
 
@@ -1659,7 +1710,7 @@ export default function CoachPage() {
             fontWeight: 600,
           }}
         >
-          Ajouter ces séances
+          {lang === "en" ? "Add these sessions" : "Ajouter ces séances"}
         </button>
       )}
 
@@ -1677,7 +1728,11 @@ export default function CoachPage() {
           onKeyDown={onKey}
           placeholder={
             onboardingDone
-              ? "Écris ton message..."
+              ? lang === "en"
+                ? "Write your message..."
+                : "Écris ton message..."
+              : lang === "en"
+              ? "Please answer the questions above first..."
               : "Réponds d'abord aux questions ci-dessus..."
           }
           disabled={!onboardingDone}
@@ -1701,7 +1756,7 @@ export default function CoachPage() {
             cursor: onboardingDone ? "pointer" : "not-allowed",
           }}
         >
-          Envoyer
+          {t.send}
         </button>
       </div>
     </div>

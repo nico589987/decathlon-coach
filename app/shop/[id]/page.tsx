@@ -2,8 +2,10 @@
 
 import { useParams } from "next/navigation";
 import { products } from "../../data/decathlon_products";
+import { useLanguage } from "../../lib/useLanguage";
 
 export default function ProductPage() {
+  const { lang } = useLanguage();
   const params = useParams();
   const productId = params?.id;
 
@@ -16,8 +18,12 @@ export default function ProductPage() {
   if (!product) {
     return (
       <div style={{ padding: 20 }}>
-        <h2>Produit indisponible</h2>
-        <p>Ce produit n’existe pas ou n’est plus disponible.</p>
+        <h2>{lang === "en" ? "Product unavailable" : "Produit indisponible"}</h2>
+        <p>
+          {lang === "en"
+            ? "This product does not exist or is no longer available."
+            : "Ce produit n’existe pas ou n’est plus disponible."}
+        </p>
       </div>
     );
   }
@@ -54,7 +60,7 @@ export default function ProductPage() {
             marginBottom: 12,
           }}
         >
-          ← Retour boutique
+          {lang === "en" ? "← Back to shop" : "← Retour boutique"}
         </a>
         <div
           style={{
@@ -78,7 +84,7 @@ export default function ProductPage() {
               fontWeight: 700,
             }}
           >
-            Image indisponible
+            {lang === "en" ? "Image unavailable" : "Image indisponible"}
           </div>
           {product.image && (
             <img
@@ -157,7 +163,7 @@ export default function ProductPage() {
             cursor: "pointer",
           }}
         >
-          Acheter sur Decathlon
+          {lang === "en" ? "Buy on Decathlon" : "Acheter sur Decathlon"}
         </button>
       </div>
     </div>

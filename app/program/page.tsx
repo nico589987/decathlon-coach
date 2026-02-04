@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { products as allProducts } from "../data/decathlon_products";
 import { supabase, supabaseConfigured } from "../lib/supabaseClient";
+import { useLanguage } from "../lib/useLanguage";
 
 type Session = {
   id: string;
@@ -235,6 +236,52 @@ function groupSessionItems(lines: string[]) {
   );
 }
 
+function translateProfileInfo(
+  lang: "fr" | "en",
+  type: "goal" | "level" | "location",
+  value: string
+) {
+  if (lang === "fr") return value;
+  const map: Record<string, Record<string, string>> = {
+    goal: {
+      "Perte de poids": "Weight loss",
+      "Remise en forme": "Get back in shape",
+      Performance: "Performance",
+      "Bien-être": "Well-being",
+    },
+    level: {
+      Débutant: "Beginner",
+      Intermédiaire: "Intermediate",
+      Avancé: "Advanced",
+    },
+    location: {
+      Maison: "Home",
+      Salle: "Gym",
+      Extérieur: "Outdoor",
+      Mix: "Mixed",
+    },
+  };
+  return map[type][value] || value;
+}
+
+function translateSectionLabel(lang: "fr" | "en", label: string) {
+  if (lang === "fr") return label;
+  const map: Record<string, string> = {
+    "Échauffement": "Warm-up",
+    "Exercices": "Exercises",
+    "Course à pied": "Running",
+    "Retour au calme": "Cool down",
+    "Étirements": "Stretching",
+    "Conseils": "Tips",
+  };
+  return map[label] || label;
+}
+
+function isTipsLabel(label: string) {
+  const normalized = normalizeText(label);
+  return normalized.includes("conseil") || normalized.includes("tips");
+}
+
 function highlightItem(text: string) {
   const parts: ReactNode[] = [];
   const regex =
@@ -277,6 +324,8 @@ function extractDuration(title: string, content: string) {
 }
 
 export default function ProgramPage() {
+  const { t, lang } = useLanguage();
+  const dateLocale = lang === "en" ? "en-US" : "fr-FR";
   const [sessions, setSessions] = useState<Session[]>([]);
   const [feedbackTarget, setFeedbackTarget] = useState<Session | null>(null);
   const [lastCompletedId, setLastCompletedId] = useState<string | null>(null);
@@ -534,9 +583,11 @@ export default function ProgramPage() {
           {"📘"}
         </div>
         <div>
-          <h1 style={{ margin: 0 }}>Mon Programme</h1>
+          <h1 style={{ margin: 0 }}>{t.program}</h1>
           <div style={{ color: "#475569", fontSize: 13 }}>
-            Tes séances planifiées et suivies
+            {lang === "en"
+              ? "Your planned and tracked sessions"
+              : "Tes séances planifiées et suivies"}
           </div>
         </div>
         {totalCount > 0 && (
@@ -552,7 +603,9 @@ export default function ProgramPage() {
               fontWeight: 700,
             }}
           >
-            {doneCount}/{totalCount} séances faites
+            {lang === "en"
+              ? `${doneCount}/${totalCount} sessions done`
+              : `${doneCount}/${totalCount} séances faites`}
           </div>
         )}
       </div>
@@ -590,12 +643,34 @@ export default function ProgramPage() {
           }}
         >
           <div style={{ fontWeight: 800, fontSize: 14, color: "#1e293b" }}>
-            {profileInfo.name ? `Bon retour, ${profileInfo.name} 👋` : "Ton objectif en un coup d'œil"}
+            {profileInfo.name
+              ? `${lang === "en" ? "Welcome back" : "Bon retour"}, ${profileInfo.name} 👋`
+              : lang === "en"
+              ? "Your goal at a glance"
+              : "Ton objectif en un coup d'œil"}
           </div>
           <div style={{ fontSize: 12, color: "#475569" }}>
-            {profileInfo.goal ? `Objectif : ${profileInfo.goal}. ` : ""}
-            {profileInfo.level ? `Niveau : ${profileInfo.level}. ` : ""}
-            {profileInfo.location ? `Lieu : ${profileInfo.location}.` : ""}
+            {profileInfo.goal
+              ? `${lang === "en" ? "Goal" : "Objectif"} : ${translateProfileInfo(
+                  lang,
+                  "goal",
+                  profileInfo.goal
+                )}. `
+              : ""}
+            {profileInfo.level
+              ? `${lang === "en" ? "Level" : "Niveau"} : ${translateProfileInfo(
+                  lang,
+                  "level",
+                  profileInfo.level
+                )}. `
+              : ""}
+            {profileInfo.location
+              ? `${lang === "en" ? "Location" : "Lieu"} : ${translateProfileInfo(
+                  lang,
+                  "location",
+                  profileInfo.location
+                )}.`
+              : ""}
           </div>
         </div>
       )}
@@ -646,7 +721,11 @@ export default function ProgramPage() {
         }
       `}</style>
       {sessions.length === 0 && (
-        <p style={{ opacity: 0.6 }}>Aucune séance ajoutée pour l’instant.</p>
+        <p style={{ opacity: 0.6 }}>
+          {lang === "en"
+            ? "No session added yet."
+            : "Aucune séance ajoutée pour l’instant."}
+        </p>
       )}
 
       {(() => {
@@ -659,7 +738,7 @@ export default function ProgramPage() {
         ) => {
           const completedLabel =
             s.completedAt && s.done && showDate
-              ? new Date(s.completedAt).toLocaleDateString("fr-FR")
+              ? new Date(s.completedAt).toLocaleDateString(dateLocale)
               : null;
           const isCollapsed = Boolean(collapsedMap[s.id]);
           const durationLabel = extractDuration(s.title, s.content);
@@ -714,7 +793,7 @@ export default function ProgramPage() {
                 cursor: "pointer",
               }}
             >
-              Supprimer
+              {t.remove}
             </button>
 
             <div
@@ -729,7 +808,7 @@ export default function ProgramPage() {
             >
           <h3 style={{ margin: 0 }}>
             {typeof displayIndex === "number"
-              ? `Séance ${displayIndex + 1} : `
+              ? `${lang === "en" ? "Session" : "Séance"} ${displayIndex + 1} : `
               : ""}
             {cleanSessionTitle(s.title)}
           </h3>
@@ -753,7 +832,13 @@ export default function ProgramPage() {
                   cursor: "pointer",
                 }}
               >
-                {isCollapsed ? "Afficher" : "Réduire"}
+                {isCollapsed
+                  ? lang === "en"
+                    ? "Show"
+                    : "Afficher"
+                  : lang === "en"
+                  ? "Collapse"
+                  : "Réduire"}
               </button>
               {completedLabel && !isCollapsed && (
                 <span
@@ -767,7 +852,7 @@ export default function ProgramPage() {
                     padding: "3px 10px",
                   }}
                 >
-                  Fait le {completedLabel}
+                  {lang === "en" ? "Done on" : "Fait le"} {completedLabel}
                 </span>
               )}
             </div>
@@ -775,10 +860,13 @@ export default function ProgramPage() {
               <div style={{ marginTop: 8, color: "#475569", fontSize: 14 }}>
                 {durationLabel && (
                   <div style={{ marginBottom: 4 }}>
-                    Durée : <strong>{durationLabel}</strong>
+                    {lang === "en" ? "Duration" : "Durée"} :{" "}
+                    <strong>{durationLabel}</strong>
                   </div>
                 )}
-                {completedLabel && <div>Fait le {completedLabel}</div>}
+                {completedLabel && (
+                  <div>{lang === "en" ? "Done on" : "Fait le"} {completedLabel}</div>
+                )}
               </div>
             ) : (
               <ul
@@ -824,9 +912,9 @@ export default function ProgramPage() {
                         border: `1px solid ${group.color}33`,
                       }}
                     >
-                      {group.label}
+                      {translateSectionLabel(lang, group.label)}
                     </div>
-                    {group.label === "Conseils" ? (
+                    {isTipsLabel(group.label) ? (
                       <div
                         style={{
                           marginTop: 4,
@@ -846,7 +934,7 @@ export default function ProgramPage() {
                             marginBottom: 6,
                           }}
                         >
-                          💡 Conseils du coach
+                          💡 {lang === "en" ? "Coach tips" : "Conseils du coach"}
                         </div>
                         <ul style={{ margin: 0, paddingLeft: 18 }}>
                           {group.items.map((item, idx) => (
@@ -900,7 +988,7 @@ export default function ProgramPage() {
               ).length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                  Produits recommandés
+                  {t.recommendedProducts}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {getProductLinks(
@@ -946,7 +1034,7 @@ export default function ProgramPage() {
                   boxShadow: "0 6px 12px rgba(60,70,184,0.3)",
                 }}
               >
-                OK Marquer effectuée
+                {t.markDone}
               </button>
             )}
 
@@ -977,7 +1065,7 @@ export default function ProgramPage() {
                     cursor: "pointer",
                   }}
                 >
-                  Annuler
+                  {t.cancel}
                 </button>
               </div>
             )}
@@ -1000,7 +1088,7 @@ export default function ProgramPage() {
                   }}
                 >
                   <div style={{ fontWeight: 800, color: "#0f172a" }}>
-                    Séances effectuées
+                    {lang === "en" ? "Completed sessions" : "Séances effectuées"}
                   </div>
                   <span
                     style={{
@@ -1045,7 +1133,9 @@ export default function ProgramPage() {
               boxShadow: "0 18px 40px rgba(15,23,42,0.25)",
             }}
           >
-            <h3 style={{ marginTop: 0 }}>Comment était la séance ?</h3>
+            <h3 style={{ marginTop: 0 }}>
+              {lang === "en" ? "How was the session?" : "Comment était la séance ?"}
+            </h3>
 
             {[
               ["facile", "Facile"],
@@ -1075,7 +1165,7 @@ export default function ProgramPage() {
               onClick={() => setFeedbackTarget(null)}
               style={{ marginTop: 12, opacity: 0.6 }}
             >
-              Annuler
+              {t.cancel}
             </button>
           </div>
         </div>

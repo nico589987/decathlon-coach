@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { products } from "../data/decathlon_products";
+import { useLanguage } from "../lib/useLanguage";
 
 export default function ShopPage() {
+  const { lang } = useLanguage();
   const [activeCategory, setActiveCategory] = useState("Tous");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("defaut");
@@ -20,6 +22,30 @@ export default function ShopPage() {
     );
     return ["Tous", ...labels];
   }, []);
+
+  const translateCategory = (value: string) => {
+    if (lang === "fr") return value;
+    const map: Record<string, string> = {
+      Tous: "All",
+      Chaussures: "Shoes",
+      Chaussettes: "Socks",
+      Hauts: "Tops",
+      Shorts: "Shorts",
+      Collants: "Tights",
+      Vestes: "Jackets",
+      Casquettes: "Caps",
+      Bandeaux: "Headbands",
+      Gants: "Gloves",
+      Montres: "Watches",
+      Ceintures: "Belts",
+      Brassards: "Armbands",
+      Hydratation: "Hydration",
+      Sécurité: "Safety",
+      Récupération: "Recovery",
+      Audio: "Audio",
+    };
+    return map[value] || value;
+  };
 
   const filtered = useMemo(() => {
     const base =
@@ -85,13 +111,15 @@ export default function ShopPage() {
         </div>
         <div>
           <h1 style={{ margin: 0 }}>
-            Boutique{" "}
+            {lang === "en" ? "Shop" : "Boutique"}{" "}
             <span style={{ fontSize: 14, color: "#475569", fontWeight: 600 }}>
-              ({filtered.length} produits)
+              ({filtered.length} {lang === "en" ? "products" : "produits"})
             </span>
           </h1>
           <div style={{ color: "#475569", fontSize: 13 }}>
-            Produits Decathlon sélectionnés pour ton programme
+            {lang === "en"
+              ? "Decathlon products selected for your program"
+              : "Produits Decathlon sélectionnés pour ton programme"}
           </div>
         </div>
       </div>
@@ -118,7 +146,9 @@ export default function ShopPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un produit..."
+            placeholder={
+              lang === "en" ? "Search a product..." : "Rechercher un produit..."
+            }
             style={{
               padding: "8px 12px",
               borderRadius: 999,
@@ -140,9 +170,15 @@ export default function ShopPage() {
               color: "#1e293b",
             }}
           >
-            <option value="defaut">Tri : Recommandé</option>
-            <option value="price_asc">Prix croissant</option>
-            <option value="price_desc">Prix décroissant</option>
+            <option value="defaut">
+              {lang === "en" ? "Sort: Recommended" : "Tri : Recommandé"}
+            </option>
+            <option value="price_asc">
+              {lang === "en" ? "Price: Low to high" : "Prix croissant"}
+            </option>
+            <option value="price_desc">
+              {lang === "en" ? "Price: High to low" : "Prix décroissant"}
+            </option>
           </select>
         </div>
       </div>
@@ -175,7 +211,7 @@ export default function ShopPage() {
                 cursor: "pointer",
               }}
             >
-              {chip}
+              {translateCategory(chip)}
             </button>
           );
         })}
@@ -193,7 +229,7 @@ export default function ShopPage() {
               cursor: "pointer",
             }}
           >
-            Réinitialiser
+            {lang === "en" ? "Reset" : "Réinitialiser"}
           </button>
         )}
       </div>
@@ -210,7 +246,9 @@ export default function ShopPage() {
             color: "#475569",
           }}
         >
-          Aucun produit dans cette catégorie pour l’instant.
+          {lang === "en"
+            ? "No products in this category yet."
+            : "Aucun produit dans cette catégorie pour l’instant."}
           <div style={{ marginTop: 12 }}>
             <button
               onClick={() => setActiveCategory("Tous")}
@@ -226,7 +264,7 @@ export default function ShopPage() {
                 cursor: "pointer",
               }}
             >
-              Voir tout
+              {lang === "en" ? "View all" : "Voir tout"}
             </button>
           </div>
         </div>
@@ -277,7 +315,7 @@ export default function ShopPage() {
                     zIndex: 0,
                   }}
                 >
-                  Image indisponible
+                  {lang === "en" ? "Image unavailable" : "Image indisponible"}
                 </div>
                 {product.image && (
                   <img
@@ -343,7 +381,7 @@ export default function ShopPage() {
                   fontWeight: 700,
                 }}
               >
-                Voir le produit
+                {lang === "en" ? "View product" : "Voir le produit"}
               </div>
             </a>
           ))}

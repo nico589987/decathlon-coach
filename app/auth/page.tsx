@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase, supabaseConfigured } from "../lib/supabaseClient";
+import { useLanguage } from "../lib/useLanguage";
 
 type Profile = {
   name: string;
@@ -18,6 +19,7 @@ type Profile = {
 const sexOptions = ["Homme", "Femme", "Autre"];
 
 export default function AuthPage() {
+  const { t } = useLanguage();
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -186,9 +188,9 @@ export default function AuthPage() {
           padding: 20,
         }}
       >
-        <div style={{ fontWeight: 800, fontSize: 20 }}>Compte</div>
+        <div style={{ fontWeight: 800, fontSize: 20 }}>{t.account}</div>
         <div style={{ color: "#475569", fontSize: 13, marginTop: 6 }}>
-          Crée ton compte pour sauvegarder ton profil et tes progrès.
+          {t.account} · {t.signup}
         </div>
         {!supabaseConfigured && (
           <div
@@ -241,7 +243,7 @@ export default function AuthPage() {
         }}
       >
         <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-          Email
+          {t.email}
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -254,7 +256,7 @@ export default function AuthPage() {
           />
         </label>
         <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-          Mot de passe
+          {t.password}
           <input
             type="password"
             value={password}
@@ -270,11 +272,9 @@ export default function AuthPage() {
 
         {mode === "signup" && (
           <>
-            <div style={{ fontWeight: 700, marginTop: 6 }}>
-              Profil utilisateur
-            </div>
+            <div style={{ fontWeight: 700, marginTop: 6 }}>{t.profile}</div>
             <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-              Prénom
+              {t.firstName}
               <input
                 value={profile.name}
                 onChange={(e) =>
@@ -289,7 +289,7 @@ export default function AuthPage() {
             </label>
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Date de naissance
+                {t.birthDate}
                 <input
                   type="date"
                   value={profile.birthDate}
@@ -304,7 +304,7 @@ export default function AuthPage() {
                 />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Poids
+                {t.weight}
                 <input
                   type="number"
                   min={30}
@@ -324,7 +324,7 @@ export default function AuthPage() {
                 />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Sexe
+                {t.sex}
                 <select
                   value={profile.sex}
                   onChange={(e) =>
@@ -350,11 +350,11 @@ export default function AuthPage() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
           {mode === "signup" ? (
             <button onClick={handleSignup} style={buttonStyle}>
-              Créer mon compte
+              {t.signup}
             </button>
           ) : (
             <button onClick={handleLogin} style={buttonStyle}>
-              Se connecter
+              {t.login}
             </button>
           )}
           {sessionEmail && (
