@@ -116,7 +116,7 @@ export default function SuiviPage() {
     if (profileRaw) {
       const parsed = JSON.parse(profileRaw);
       localProfile = { ...defaultProfile, ...parsed };
-      setProfile(localProfile);
+      if (localProfile) setProfile(localProfile);
     }
     const localUpdatedRaw = localStorage.getItem(PROFILE_UPDATED_KEY);
     const localUpdatedAt = localUpdatedRaw ? Date.parse(localUpdatedRaw) : 0;
