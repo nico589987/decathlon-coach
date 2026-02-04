@@ -152,6 +152,29 @@ img {
     gap: 12px !important;
   }
 
+  .shop-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .shop-toolbar input,
+  .shop-toolbar select {
+    width: 100% !important;
+  }
+
+  .suivi-goal {
+    padding: 16px !important;
+  }
+
+  .suivi-goal div {
+    word-break: break-word;
+  }
+
+  .suivi-goal button {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+  }
+
   .coach-question-card,
   .coach-message-bubble {
     max-width: 100% !important;

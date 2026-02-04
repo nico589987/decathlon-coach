@@ -5,6 +5,14 @@ import { products } from "../data/decathlon_products";
 
 export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState("Tous");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("defaut");
+
+  function parsePrice(value: string) {
+    const numeric = value.replace(",", ".").replace(/[^0-9.]/g, "");
+    const parsed = Number(numeric);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
 
   const categories = useMemo(() => {
     const labels = Array.from(
@@ -14,11 +22,26 @@ export default function ShopPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (activeCategory === "Tous") return products;
-    return products.filter(
-      (product) => product.categoryLabel === activeCategory
-    );
-  }, [activeCategory]);
+    const base =
+      activeCategory === "Tous"
+        ? products
+        : products.filter((product) => product.categoryLabel === activeCategory);
+    const searched = search.trim()
+      ? base.filter((product) =>
+          `${product.name} ${product.categoryLabel}`
+            .toLowerCase()
+            .includes(search.trim().toLowerCase())
+        )
+      : base;
+    const sorted = [...searched];
+    if (sort === "price_asc") {
+      sorted.sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
+    }
+    if (sort === "price_desc") {
+      sorted.sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
+    }
+    return sorted;
+  }, [activeCategory, search, sort]);
 
   return (
     <div
@@ -74,9 +97,60 @@ export default function ShopPage() {
       </div>
 
       <div
+        className="shop-toolbar"
+        style={{
+          marginTop: 14,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 12,
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher un produit..."
+            style={{
+              padding: "8px 12px",
+              borderRadius: 999,
+              border: "1px solid #c7d2fe",
+              minWidth: 220,
+              fontSize: 12,
+            }}
+          />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 999,
+              border: "1px solid #c7d2fe",
+              background: "white",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#1e293b",
+            }}
+          >
+            <option value="defaut">Tri : Recommandé</option>
+            <option value="price_asc">Prix croissant</option>
+            <option value="price_desc">Prix décroissant</option>
+          </select>
+        </div>
+      </div>
+
+      <div
         className="shop-chips"
         style={{
-          marginTop: 16,
+          marginTop: 12,
           display: "flex",
           gap: 10,
           flexWrap: "wrap",

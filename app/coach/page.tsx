@@ -29,6 +29,7 @@ type SessionDraft = {
   content: string;
   products: string[];
   sections?: Section[];
+  plannedAt?: string;
 };
 
 const STORAGE_KEY = "coach_messages_v1";
@@ -668,6 +669,7 @@ export default function CoachPage() {
       title: s.title,
       content: s.content,
       done: false,
+      plannedAt: s.plannedAt,
       products: s.products,
       sections: s.sections,
     }));
@@ -690,6 +692,7 @@ export default function CoachPage() {
         title: session.title,
         content: session.content,
         done: false,
+        plannedAt: session.plannedAt,
         products: session.products,
         sections: session.sections,
       },

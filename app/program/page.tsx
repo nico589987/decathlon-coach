@@ -11,6 +11,7 @@ type Session = {
   done?: boolean;
   feedback?: "facile" | "ok" | "dur" | "trop_dur";
   completedAt?: string;
+  plannedAt?: string;
   products?: string[];
   sections?: { label: string; items: string[] }[];
 };

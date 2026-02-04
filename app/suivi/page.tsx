@@ -9,6 +9,16 @@ type Session = {
   done?: boolean;
   feedback?: "facile" | "ok" | "dur" | "trop_dur";
   completedAt?: string;
+  plannedAt?: string;
+};
+
+type Profile = {
+  name: string;
+  goal: string;
+  level: string;
+  location: string;
+  equipment: string;
+  injuries: string;
 };
 
 const FEEDBACK_LABELS: Record<NonNullable<Session["feedback"]>, string> = {
@@ -51,18 +61,36 @@ function endOfWeek(date: Date) {
 function getSessionType(title: string, content: string) {
   const text = `${title} ${content}`.toLowerCase();
   if (/(course|running|footing|fractionn|endurance)/i.test(text)) return "course";
-  if (/(renforcement|muscu|gainage|squats|fentes|pompes)/i.test(text))
+  if (/(renforcement|muscu|gainage|squats|fentes|pompes)/i.test(text)) {
     return "renfo";
+  }
   if (/(mobilit|etirement|souplesse)/i.test(text)) return "mobilite";
   return "mix";
 }
 
 export default function SuiviPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [weeklyGoal, setWeeklyGoal] = useState(3);
+  const [profile, setProfile] = useState<Profile>({
+    name: "",
+    goal: "Remise en forme",
+    level: "Débutant",
+    location: "Maison",
+    equipment: "Tapis, élastiques",
+    injuries: "Aucune",
+  });
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
+  const [equipmentChoices, setEquipmentChoices] = useState<string[]>([]);
+  const [injuryOther, setInjuryOther] = useState("");
 
   useEffect(() => {
     const raw = localStorage.getItem("program_sessions");
     if (raw) setSessions(JSON.parse(raw));
+    const goalRaw = localStorage.getItem("weekly_goal");
+    if (goalRaw) setWeeklyGoal(Number(goalRaw));
+    const profileRaw = localStorage.getItem("user_profile");
+    if (profileRaw) setProfile(JSON.parse(profileRaw));
   }, []);
 
   const stats = useMemo(() => {
@@ -149,7 +177,6 @@ export default function SuiviPage() {
     };
   }, [sessions]);
 
-  const weeklyGoal = 3;
   const weekStart = startOfWeek(new Date());
   const weekEnd = endOfWeek(new Date());
   const doneThisWeek = stats.done.filter((s) => {
@@ -176,6 +203,51 @@ export default function SuiviPage() {
     },
     { course: 0, renfo: 0, mobilite: 0, mix: 0 }
   );
+
+  const plannedDayKeys = new Set(
+    sessions
+      .filter((s) => s.plannedAt)
+      .map((s) => toDayKey(new Date(s.plannedAt as string)))
+  );
+
+  const achievements = [
+    { label: "Première séance", done: stats.doneCount >= 1 },
+    { label: "3 séances réalisées", done: stats.doneCount >= 3 },
+    { label: "7 séances réalisées", done: stats.doneCount >= 7 },
+    { label: "Streak 5 jours", done: stats.streak >= 5 },
+  ];
+
+  const trend = (() => {
+    const now = new Date();
+    const last2Start = new Date(now);
+    last2Start.setDate(now.getDate() - 13);
+    const prev2Start = new Date(now);
+    prev2Start.setDate(now.getDate() - 27);
+    const prev2End = new Date(now);
+    prev2End.setDate(now.getDate() - 14);
+    const last2 = stats.done.filter((s) => {
+      if (!s.completedAt) return false;
+      const d = new Date(s.completedAt);
+      return d >= last2Start;
+    }).length;
+    const prev2 = stats.done.filter((s) => {
+      if (!s.completedAt) return false;
+      const d = new Date(s.completedAt);
+      return d >= prev2Start && d <= prev2End;
+    }).length;
+    return last2 - prev2;
+  })();
+
+  function saveWeeklyGoal(value: number) {
+    setWeeklyGoal(value);
+    localStorage.setItem("weekly_goal", String(value));
+  }
+
+  function saveProfile(next: Profile) {
+    setProfile(next);
+    localStorage.setItem("user_profile", JSON.stringify(next));
+  }
+
 
   return (
     <div
@@ -268,6 +340,7 @@ export default function SuiviPage() {
           </div>
         </div>
         <div
+          className="suivi-goal"
           style={{
             padding: 20,
             borderRadius: 18,
@@ -283,6 +356,33 @@ export default function SuiviPage() {
           </div>
           <div style={{ fontSize: 13, color: "#166534", marginTop: 6 }}>
             Séances réalisées cette semaine
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            {[2, 3, 4, 5].map((value) => (
+              <button
+                key={value}
+                onClick={() => saveWeeklyGoal(value)}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  border: "1px solid #86efac",
+                  background: value === weeklyGoal ? "#16a34a" : "white",
+                  color: value === weeklyGoal ? "white" : "#166534",
+                  fontWeight: 700,
+                  fontSize: 11,
+                  cursor: "pointer",
+                }}
+              >
+                {value}/sem
+              </button>
+            ))}
           </div>
           <div
             style={{
@@ -303,7 +403,6 @@ export default function SuiviPage() {
           </div>
         </div>
       </div>
-
       <div
         style={{
           display: "grid",
@@ -414,6 +513,7 @@ export default function SuiviPage() {
             </div>
           ))}
         </div>
+
         <div
           style={{
             background: "white",
@@ -459,16 +559,7 @@ export default function SuiviPage() {
             Chaque carré correspond à une journée (plein = séance réalisée).
           </div>
         </div>
-      </div>
 
-      <div
-        style={{
-          marginTop: 22,
-          display: "grid",
-          gap: 18,
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-        }}
-      >
         <div
           style={{
             background: "white",
@@ -478,41 +569,29 @@ export default function SuiviPage() {
             padding: 20,
           }}
         >
-          <div style={{ fontWeight: 800, marginBottom: 12 }}>
-            Dernières séances
+          <div style={{ fontWeight: 800, marginBottom: 10 }}>Tendance</div>
+          <div style={{ fontSize: 28, fontWeight: 800 }}>
+            {trend >= 0 ? "+" : ""}
+            {trend}
           </div>
-          {[...stats.done]
-            .sort(
-              (a, b) =>
-                new Date(b.completedAt as string).getTime() -
-                new Date(a.completedAt as string).getTime()
-            )
-            .slice(0, 4)
-            .map((s) => (
-            <div
-              key={s.id}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid #e2e8f0",
-                marginBottom: 8,
-                background: "#f8fafc",
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 700 }}>{s.title}</div>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
-                {s.completedAt
-                  ? new Date(s.completedAt).toLocaleDateString("fr-FR")
-                  : "—"}
-              </div>
-            </div>
-            ))}
-          {stats.done.length === 0 && (
-            <div style={{ color: "#94a3b8", fontSize: 13 }}>
-              Aucune séance réalisée pour l’instant.
-            </div>
-          )}
+          <div style={{ color: "#475569", fontSize: 13 }}>
+            séances sur les 2 dernières semaines
+          </div>
+          <div style={{ marginTop: 10, fontSize: 13, color: "#1e293b" }}>
+            {trend >= 0
+              ? "Ton rythme progresse. Continue comme ça !"
+              : "Ralentissement détecté, reprends doucement."}
+          </div>
         </div>
+      </div>
+      <div
+        style={{
+          marginTop: 22,
+          display: "grid",
+          gap: 18,
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+        }}
+      >
         <div
           style={{
             background: "white",
@@ -573,6 +652,7 @@ export default function SuiviPage() {
             </div>
           )}
         </div>
+
         <div
           style={{
             background: "white",
@@ -631,6 +711,434 @@ export default function SuiviPage() {
             );
           })}
         </div>
+      </div>
+      <div
+        style={{
+          marginTop: 22,
+          display: "grid",
+          gap: 18,
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+        }}
+      >
+        <div
+          style={{
+            background: "white",
+            borderRadius: 20,
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 16px 32px rgba(15,23,42,0.08)",
+            padding: 20,
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 12 }}>
+            Dernières séances
+          </div>
+          {[...stats.done]
+            .sort(
+              (a, b) =>
+                new Date(b.completedAt as string).getTime() -
+                new Date(a.completedAt as string).getTime()
+            )
+            .slice(0, 4)
+            .map((s) => (
+              <div
+                key={s.id}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid #e2e8f0",
+                  marginBottom: 8,
+                  background: "#f8fafc",
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{s.title}</div>
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                  {s.completedAt
+                    ? new Date(s.completedAt).toLocaleDateString("fr-FR")
+                    : "—"}
+                </div>
+              </div>
+            ))}
+          {stats.done.length === 0 && (
+            <div style={{ color: "#94a3b8", fontSize: 13 }}>
+              Aucune séance réalisée pour l’instant.
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            background: "white",
+            borderRadius: 20,
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 16px 32px rgba(15,23,42,0.08)",
+            padding: 20,
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 12 }}>Succès</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {achievements.map((badge) => (
+              <span
+                key={badge.label}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  background: badge.done ? "#dbeafe" : "#e2e8f0",
+                  color: badge.done ? "#1e40af" : "#475569",
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                {badge.done ? "✅" : "⏳"} {badge.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: "white",
+            borderRadius: 20,
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 16px 32px rgba(15,23,42,0.08)",
+            padding: 20,
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 12 }}>Calendrier</div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, 1fr)",
+              gap: 6,
+              fontSize: 11,
+              color: "#64748b",
+              marginBottom: 8,
+            }}
+          >
+            {"L M M J V S D".split(" ").map((d, idx) => (
+              <div key={`${d}-${idx}`} style={{ textAlign: "center" }}>
+                {d}
+              </div>
+            ))}
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, 1fr)",
+              gap: 6,
+            }}
+          >
+            {(() => {
+              const now = new Date();
+              const first = new Date(now.getFullYear(), now.getMonth(), 1);
+              const daysInMonth = new Date(
+                now.getFullYear(),
+                now.getMonth() + 1,
+                0
+              ).getDate();
+              const startOffset = (first.getDay() + 6) % 7;
+              const cells = [];
+              for (let i = 0; i < startOffset; i += 1) {
+                cells.push(<div key={`spacer-${i}`} />);
+              }
+              for (let day = 1; day <= daysInMonth; day += 1) {
+                const d = new Date(now.getFullYear(), now.getMonth(), day);
+                const key = toDayKey(d);
+                const doneDay = stats.doneDayKeys.has(key);
+                const plannedDay = plannedDayKeys.has(key);
+                cells.push(
+                  <div
+                    key={key}
+                    style={{
+                      height: 30,
+                      borderRadius: 8,
+                      display: "grid",
+                      placeItems: "center",
+                      fontWeight: 700,
+                      fontSize: 11,
+                      background: doneDay
+                        ? "linear-gradient(135deg, #3C46B8 0%, #2563eb 100%)"
+                        : plannedDay
+                        ? "#e2e8f0"
+                        : "#f8fafc",
+                      color: doneDay ? "white" : "#475569",
+                      border: plannedDay ? "1px dashed #94a3b8" : "1px solid #e2e8f0",
+                    }}
+                  >
+                    {day}
+                  </div>
+                );
+              }
+              return cells;
+            })()}
+          </div>
+          <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
+            Bleu = séance faite, gris pointillé = planifiée.
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: "white",
+            borderRadius: 20,
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 16px 32px rgba(15,23,42,0.08)",
+            padding: 20,
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 12 }}>Profil</div>
+          {editingProfile ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                Objectif
+                <select
+                  value={(profileDraft || profile).goal}
+                  onChange={(e) =>
+                    setProfileDraft((prev) => ({
+                      ...(prev || profile),
+                      goal: e.target.value,
+                    }))
+                  }
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5f5",
+                  }}
+                >
+                  {[
+                    "Perte de poids",
+                    "Remise en forme",
+                    "Performance",
+                    "Bien-être",
+                  ].map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                Niveau
+                <select
+                  value={(profileDraft || profile).level}
+                  onChange={(e) =>
+                    setProfileDraft((prev) => ({
+                      ...(prev || profile),
+                      level: e.target.value,
+                    }))
+                  }
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5f5",
+                  }}
+                >
+                  {["Débutant", "Intermédiaire", "Avancé"].map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                Lieu
+                <select
+                  value={(profileDraft || profile).location}
+                  onChange={(e) =>
+                    setProfileDraft((prev) => ({
+                      ...(prev || profile),
+                      location: e.target.value,
+                    }))
+                  }
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5f5",
+                  }}
+                >
+                  {["Maison", "Salle", "Extérieur", "Mix"].map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div style={{ fontSize: 12 }}>
+                Matériel
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                  {[
+                    "Tapis",
+                    "Élastiques",
+                    "Haltères",
+                    "Corde à sauter",
+                    "Aucun",
+                  ].map((opt) => {
+                    const selected = equipmentChoices.includes(opt);
+                    return (
+                      <button
+                        key={opt}
+                        onClick={() => {
+                          setEquipmentChoices((prev) =>
+                            selected
+                              ? prev.filter((i) => i !== opt)
+                              : [...prev, opt]
+                          );
+                        }}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          border: "1px solid #c7d2fe",
+                          background: selected ? "#3C46B8" : "#eef2ff",
+                          color: selected ? "white" : "#3730a3",
+                          fontWeight: 700,
+                          fontSize: 11,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ fontSize: 12 }}>
+                Blessures
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                  {["Aucune", "Genou", "Dos", "Épaules", "Autre"].map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() =>
+                        setProfileDraft((prev) => ({
+                          ...(prev || profile),
+                          injuries: opt,
+                        }))
+                      }
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 999,
+                        border: "1px solid #c7d2fe",
+                        background:
+                          (profileDraft || profile).injuries === opt
+                            ? "#3C46B8"
+                            : "#eef2ff",
+                        color:
+                          (profileDraft || profile).injuries === opt
+                            ? "white"
+                            : "#3730a3",
+                        fontWeight: 700,
+                        fontSize: 11,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+                {(profileDraft || profile).injuries === "Autre" && (
+                  <input
+                    value={injuryOther}
+                    onChange={(e) => setInjuryOther(e.target.value)}
+                    placeholder="Précise la blessure..."
+                    style={{
+                      marginTop: 8,
+                      padding: "8px 10px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5f5",
+                      width: "100%",
+                    }}
+                  />
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => {
+                    const next = profileDraft || profile;
+                    const equipment =
+                      equipmentChoices.length > 0
+                        ? equipmentChoices.join(", ")
+                        : next.equipment;
+                    const injuries =
+                      next.injuries === "Autre" && injuryOther
+                        ? injuryOther
+                        : next.injuries;
+                    saveProfile({ ...next, equipment, injuries });
+                    setEditingProfile(false);
+                    setProfileDraft(null);
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: "#3C46B8",
+                    color: "white",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Enregistrer
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingProfile(false);
+                    setProfileDraft(null);
+                    setEquipmentChoices([]);
+                    setInjuryOther("");
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #e2e8f0",
+                    background: "white",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
+              <div>
+                Objectif : <strong>{profile.goal}</strong>
+              </div>
+              <div>
+                Niveau : <strong>{profile.level}</strong>
+              </div>
+              <div>
+                Lieu : <strong>{profile.location}</strong>
+              </div>
+              <div>
+                Matériel : <strong>{profile.equipment}</strong>
+              </div>
+              <div>
+                Blessures : <strong>{profile.injuries}</strong>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingProfile(true);
+                  setProfileDraft(profile);
+                  setEquipmentChoices(
+                    profile.equipment ? profile.equipment.split(", ") : []
+                  );
+                  setInjuryOther("");
+                }}
+                style={{
+                  marginTop: 8,
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #c7d2fe",
+                  background: "#eef2ff",
+                  color: "#3730a3",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Modifier
+              </button>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
