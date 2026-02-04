@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase, supabaseConfigured } from "../lib/supabaseClient";
 
 type Session = {
   id: string;
@@ -114,6 +114,7 @@ export default function SuiviPage() {
       const parsed = JSON.parse(profileRaw);
       setProfile({ ...defaultProfile, ...parsed });
     }
+    if (!supabaseConfigured) return;
     supabase.auth.getSession().then(async ({ data }) => {
       const userId = data.session?.user?.id;
       if (!userId) return;
@@ -125,7 +126,7 @@ export default function SuiviPage() {
         .eq("id", userId)
         .single();
       if (profileRow) {
-        setProfile({
+        const nextProfile = {
           ...defaultProfile,
           name: profileRow.name || "",
           ageRange: profileRow.age_range || defaultProfile.ageRange,
@@ -136,7 +137,9 @@ export default function SuiviPage() {
           location: profileRow.location || defaultProfile.location,
           equipment: profileRow.equipment || defaultProfile.equipment,
           injuries: profileRow.injuries || defaultProfile.injuries,
-        });
+        };
+        setProfile(nextProfile);
+        localStorage.setItem("user_profile", JSON.stringify(nextProfile));
       }
     });
   }, []);
