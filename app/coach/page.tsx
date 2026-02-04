@@ -36,6 +36,7 @@ type SessionDraft = {
 const STORAGE_KEY = "coach_messages_v1";
 const PENDING_KEY = "coach_pending_sessions_v1";
 const COACH_UPDATED_KEY = "coach_messages_updated_at";
+const PROGRAM_UPDATED_KEY = "program_sessions_updated_at";
 
 function normalizeText(value: string) {
   return value
@@ -987,6 +988,23 @@ export default function CoachPage() {
   // ======================
   // Add to program
   // ======================
+  function syncProgramSessions(list: SessionDraft[]) {
+    const updatedAt = new Date().toISOString();
+    localStorage.setItem("program_sessions", JSON.stringify(list));
+    localStorage.setItem(PROGRAM_UPDATED_KEY, updatedAt);
+    if (!supabaseConfigured || !sessionUserId) return;
+    supabase
+      .from("user_programs")
+      .upsert({
+        id: sessionUserId,
+        sessions: list,
+        updated_at: updatedAt,
+      })
+      .then(() => {
+        // silent
+      });
+  }
+
   function addSessionsToProgram() {
     const raw = localStorage.getItem("program_sessions");
     const existing = raw ? JSON.parse(raw) : [];
@@ -1001,10 +1019,8 @@ export default function CoachPage() {
       sections: s.sections,
     }));
 
-    localStorage.setItem(
-      "program_sessions",
-      JSON.stringify([...existing, ...formatted])
-    );
+    const nextList = [...existing, ...formatted];
+    syncProgramSessions(nextList);
     setPendingSessions([]);
     router.push("/program");
   }
@@ -1024,7 +1040,7 @@ export default function CoachPage() {
         sections: session.sections,
       },
     ];
-    localStorage.setItem("program_sessions", JSON.stringify(next));
+    syncProgramSessions(next);
     setPendingSessions((prev) => prev.filter((s) => s.id !== session.id));
   }
 
