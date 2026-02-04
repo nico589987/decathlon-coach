@@ -105,6 +105,8 @@ export default function SuiviPage() {
   const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
   const [equipmentChoices, setEquipmentChoices] = useState<string[]>([]);
   const [injuryOther, setInjuryOther] = useState("");
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<string>("");
 
   useEffect(() => {
     const raw = localStorage.getItem("program_sessions");
@@ -177,12 +179,14 @@ export default function SuiviPage() {
 
     supabase.auth.getSession().then(({ data }) => {
       const userId = data.session?.user?.id;
+      setSessionUserId(userId || null);
       if (!userId) return;
       fetchProfile(userId);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       const userId = session?.user?.id;
+      setSessionUserId(userId || null);
       if (!userId) return;
       fetchProfile(userId);
     });
@@ -347,12 +351,18 @@ export default function SuiviPage() {
     setProfile(next);
     localStorage.setItem("user_profile", JSON.stringify(next));
     localStorage.setItem(PROFILE_UPDATED_KEY, updatedAt);
-    if (!supabaseConfigured) return;
-    supabase.auth.getSession().then(async ({ data }) => {
-      const userId = data.session?.user?.id;
-      if (!userId) return;
-      await supabase.from("profiles").upsert({
-        id: userId,
+    if (!supabaseConfigured) {
+      setSyncStatus("Profil mis à jour localement (Supabase non configuré).");
+      return;
+    }
+    if (!sessionUserId) {
+      setSyncStatus("Connecte-toi pour synchroniser ton profil.");
+      return;
+    }
+    supabase
+      .from("profiles")
+      .upsert({
+        id: sessionUserId,
         name: next.name,
         age_range: next.ageRange,
         weight_range: next.weightRange,
@@ -363,8 +373,14 @@ export default function SuiviPage() {
         equipment: next.equipment,
         injuries: next.injuries,
         updated_at: updatedAt,
+      })
+      .then(({ error }) => {
+        if (error) {
+          setSyncStatus("Erreur de synchronisation du profil.");
+        } else {
+          setSyncStatus("Profil synchronisé ✅");
+        }
       });
-    });
   }
 
 
@@ -1352,6 +1368,23 @@ export default function SuiviPage() {
               >
                 Modifier
               </button>
+              <div style={{ fontSize: 12, color: "#64748b" }}>
+                {sessionUserId ? "Compte connecté" : "Compte non connecté"}
+                {syncStatus ? ` · ${syncStatus}` : ""}
+              </div>
+              {!sessionUserId && (
+                <a
+                  href="/auth"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#3C46B8",
+                    textDecoration: "none",
+                  }}
+                >
+                  Se connecter pour synchroniser
+                </a>
+              )}
             </div>
           )}
         </div>
