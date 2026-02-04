@@ -245,7 +245,7 @@ export default function CoachPage() {
         onboarding_done: onboardingDone,
         updated_at: updatedAt,
       })
-      .catch(() => {
+      .then(() => {
         // silent: keep local storage as source of truth if network fails
       });
   }
@@ -284,7 +284,7 @@ export default function CoachPage() {
         onboarding_done: onboardingDone,
         updated_at: updatedAt,
       })
-      .catch(() => {
+      .then(() => {
         // silent
       });
   }, [pendingSessions, onboardingDone, sessionUserId, messages]);

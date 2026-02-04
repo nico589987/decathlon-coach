@@ -405,7 +405,7 @@ export default function ProgramPage() {
         sessions: list,
         updated_at: updatedAt,
       })
-      .catch(() => {
+      .then(() => {
         // silent: local storage remains source of truth
       });
   }
