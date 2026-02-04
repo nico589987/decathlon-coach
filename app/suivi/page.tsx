@@ -115,33 +115,47 @@ export default function SuiviPage() {
       setProfile({ ...defaultProfile, ...parsed });
     }
     if (!supabaseConfigured) return;
-    supabase.auth.getSession().then(async ({ data }) => {
-      const userId = data.session?.user?.id;
-      if (!userId) return;
+
+    const fetchProfile = async (userId: string) => {
       const { data: profileRow } = await supabase
         .from("profiles")
         .select(
           "name, age_range, weight_range, sex, goal, level, location, equipment, injuries"
         )
         .eq("id", userId)
-        .single();
-      if (profileRow) {
-        const nextProfile = {
-          ...defaultProfile,
-          name: profileRow.name || "",
-          ageRange: profileRow.age_range || defaultProfile.ageRange,
-          weightRange: profileRow.weight_range || defaultProfile.weightRange,
-          sex: profileRow.sex || defaultProfile.sex,
-          goal: profileRow.goal || defaultProfile.goal,
-          level: profileRow.level || defaultProfile.level,
-          location: profileRow.location || defaultProfile.location,
-          equipment: profileRow.equipment || defaultProfile.equipment,
-          injuries: profileRow.injuries || defaultProfile.injuries,
-        };
-        setProfile(nextProfile);
-        localStorage.setItem("user_profile", JSON.stringify(nextProfile));
-      }
+        .maybeSingle();
+      if (!profileRow) return;
+      const nextProfile = {
+        ...defaultProfile,
+        name: profileRow.name || "",
+        ageRange: profileRow.age_range || defaultProfile.ageRange,
+        weightRange: profileRow.weight_range || defaultProfile.weightRange,
+        sex: profileRow.sex || defaultProfile.sex,
+        goal: profileRow.goal || defaultProfile.goal,
+        level: profileRow.level || defaultProfile.level,
+        location: profileRow.location || defaultProfile.location,
+        equipment: profileRow.equipment || defaultProfile.equipment,
+        injuries: profileRow.injuries || defaultProfile.injuries,
+      };
+      setProfile(nextProfile);
+      localStorage.setItem("user_profile", JSON.stringify(nextProfile));
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      const userId = data.session?.user?.id;
+      if (!userId) return;
+      fetchProfile(userId);
     });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+      fetchProfile(userId);
+    });
+
+    return () => {
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const stats = useMemo(() => {
