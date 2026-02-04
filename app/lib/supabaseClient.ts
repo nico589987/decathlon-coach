@@ -6,7 +6,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const fallbackUrl = "https://example.supabase.co";
 const fallbackKey = "public-anon-key";
 
-if (!supabaseUrl || !supabaseAnonKey) {
+export const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+if (!supabaseConfigured) {
   // Avoid build-time crashes when env vars are missing (e.g., on Vercel).
   // Real requests will still require proper env vars to be set.
   console.warn(

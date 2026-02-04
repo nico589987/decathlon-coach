@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase, supabaseConfigured } from "../lib/supabaseClient";
 
 type Profile = {
   name: string;
@@ -38,6 +38,7 @@ export default function AuthPage() {
   });
 
   useEffect(() => {
+    if (!supabaseConfigured) return;
     supabase.auth.getSession().then(({ data }) => {
       setSessionEmail(data.session?.user?.email || "");
     });
@@ -94,6 +95,10 @@ export default function AuthPage() {
   }
 
   async function handleSignup() {
+    if (!supabaseConfigured) {
+      setStatus("Configuration Supabase manquante (variables d'environnement).");
+      return;
+    }
     setStatus("Création du compte...");
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -113,6 +118,10 @@ export default function AuthPage() {
   }
 
   async function handleLogin() {
+    if (!supabaseConfigured) {
+      setStatus("Configuration Supabase manquante (variables d'environnement).");
+      return;
+    }
     setStatus("Connexion...");
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -180,6 +189,24 @@ export default function AuthPage() {
         <div style={{ color: "#475569", fontSize: 13, marginTop: 6 }}>
           Crée ton compte pour sauvegarder ton profil et tes progrès.
         </div>
+        {!supabaseConfigured && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: "10px 12px",
+              borderRadius: 12,
+              background: "#fef3c7",
+              border: "1px solid #fcd34d",
+              color: "#92400e",
+              fontWeight: 700,
+              fontSize: 12,
+            }}
+          >
+            Supabase n'est pas configuré sur ce déploiement. Ajoute
+            `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` dans
+            Vercel puis redeploie.
+          </div>
+        )}
         <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
           {(["signup", "login"] as const).map((value) => (
             <button
