@@ -42,6 +42,29 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function getProfileSummary() {
+  const raw = localStorage.getItem("user_profile");
+  if (!raw) return "profil non défini";
+  try {
+    const profile = JSON.parse(raw) as {
+      goal?: string;
+      level?: string;
+      location?: string;
+      equipment?: string;
+      injuries?: string;
+    };
+    return [
+      `Objectif: ${profile.goal || "?"}`,
+      `Niveau: ${profile.level || "?"}`,
+      `Lieu: ${profile.location || "?"}`,
+      `Matériel: ${profile.equipment || "?"}`,
+      `Blessures: ${profile.injuries || "?"}`,
+    ].join(" | ");
+  } catch {
+    return "profil non défini";
+  }
+}
+
 export default function CoachPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -257,6 +280,18 @@ export default function CoachPage() {
     ]
       .filter(Boolean)
       .join("\n");
+    const profileFromAnswers = {
+      name: "",
+      goal: String(getAnswerDisplay(onboardingAnswers.objectif)),
+      level: String(getAnswerDisplay(onboardingAnswers.experience)),
+      location: String(getAnswerDisplay(onboardingAnswers.lieu)),
+      equipment: String(getAnswerDisplay(onboardingAnswers.materiel)),
+      injuries:
+        onboardingAnswers.injuries === "Oui"
+          ? String(onboardingAnswers.injuries_detail || "Blessure non précisée")
+          : "Aucune",
+    };
+    localStorage.setItem("user_profile", JSON.stringify(profileFromAnswers));
     const userMsg: Msg = { role: "user", content: summary };
     const newMsgs: Msg[] = [...messages, userMsg];
     persist(newMsgs);
@@ -325,7 +360,11 @@ export default function CoachPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMsgs, feedbackSummary: feedbackContext }),
+        body: JSON.stringify({
+          messages: newMsgs,
+          feedbackSummary: feedbackContext,
+          profileSummary: getProfileSummary(),
+        }),
       });
       const data = await res.json();
       const reply: string = data.content || "";
@@ -611,7 +650,11 @@ export default function CoachPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMsgs, feedbackSummary: feedbackContext }),
+        body: JSON.stringify({
+          messages: newMsgs,
+          feedbackSummary: feedbackContext,
+          profileSummary: getProfileSummary(),
+        }),
       });
 
       const data = await res.json();

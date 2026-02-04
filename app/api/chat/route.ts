@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  const { messages, feedbackSummary } = await req.json();
+  const { messages, feedbackSummary, profileSummary } = await req.json();
 
   const system = `
 Tu es un coach sportif professionnel, clair et motivant.
@@ -10,9 +10,13 @@ Tu tiens compte :
 - des objectifs
 - du niveau
 - du ressenti des séances passées
+- du profil utilisateur si disponible
 
 Feedback récent utilisateur :
 ${feedbackSummary || "aucun"}
+
+Profil utilisateur :
+${profileSummary || "profil non défini"}
 
 Règles :
 - adapte la difficulté
