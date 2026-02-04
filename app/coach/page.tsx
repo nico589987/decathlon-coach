@@ -71,6 +71,8 @@ function getProfileSummary() {
   try {
     const profile = JSON.parse(raw) as {
       name?: string;
+      birthDate?: string;
+      weightKg?: number;
       ageRange?: string;
       weightRange?: string;
       sex?: string;
@@ -80,10 +82,18 @@ function getProfileSummary() {
       equipment?: string;
       injuries?: string;
     };
+    const legacyWeight =
+      typeof profile.weightKg === "number"
+        ? profile.weightKg
+        : (() => {
+            if (!profile.weightRange) return undefined;
+            const match = profile.weightRange.match(/(\d+)\s*kg/);
+            return match ? Number(match[1]) : undefined;
+          })();
     return [
       `Prénom: ${profile.name || "?"}`,
-      `Âge: ${profile.ageRange || "?"}`,
-      `Poids: ${profile.weightRange || "?"}`,
+      `Date de naissance: ${profile.birthDate || profile.ageRange || "?"}`,
+      `Poids (kg): ${legacyWeight ?? "?"}`,
       `Sexe: ${profile.sex || "?"}`,
       `Objectif: ${profile.goal || "?"}`,
       `Niveau: ${profile.level || "?"}`,
@@ -191,7 +201,7 @@ export default function CoachPage() {
       const { data: profileRow } = await supabase
         .from("profiles")
         .select(
-          "name, age_range, weight_range, sex, goal, level, location, equipment, injuries"
+          "name, birth_date, weight_kg, sex, goal, level, location, equipment, injuries"
         )
         .eq("id", userId)
         .maybeSingle();
@@ -211,8 +221,10 @@ export default function CoachPage() {
       const merged = {
         ...existing,
         ...(profileRow.name ? { name: profileRow.name } : {}),
-        ...(profileRow.age_range ? { ageRange: profileRow.age_range } : {}),
-        ...(profileRow.weight_range ? { weightRange: profileRow.weight_range } : {}),
+        ...(profileRow.birth_date ? { birthDate: profileRow.birth_date } : {}),
+        ...(typeof profileRow.weight_kg === "number"
+          ? { weightKg: profileRow.weight_kg }
+          : {}),
         ...(profileRow.sex ? { sex: profileRow.sex } : {}),
         ...(profileRow.goal ? { goal: profileRow.goal } : {}),
         ...(profileRow.level ? { level: profileRow.level } : {}),
@@ -500,16 +512,16 @@ export default function CoachPage() {
     const existingRaw = localStorage.getItem("user_profile");
     let existingProfile: {
       name?: string;
-      ageRange?: string;
-      weightRange?: string;
+      birthDate?: string;
+      weightKg?: number;
       sex?: string;
     } = {};
     if (existingRaw) {
       try {
         existingProfile = JSON.parse(existingRaw) as {
           name?: string;
-          ageRange?: string;
-          weightRange?: string;
+          birthDate?: string;
+          weightKg?: number;
           sex?: string;
         };
       } catch {
@@ -518,8 +530,8 @@ export default function CoachPage() {
     }
     const profileFromAnswers = {
       name: existingProfile.name || "",
-      ageRange: existingProfile.ageRange || "21-29",
-      weightRange: existingProfile.weightRange || "61-70 kg",
+      birthDate: existingProfile.birthDate || "",
+      weightKg: existingProfile.weightKg ?? 70,
       sex: existingProfile.sex || "Homme",
       goal: String(getAnswerDisplay(onboardingAnswers.objectif)),
       level: String(getAnswerDisplay(onboardingAnswers.experience)),
@@ -538,8 +550,8 @@ export default function CoachPage() {
       await supabase.from("profiles").upsert({
         id: userId,
         name: profileFromAnswers.name,
-        age_range: profileFromAnswers.ageRange,
-        weight_range: profileFromAnswers.weightRange,
+        birth_date: profileFromAnswers.birthDate || null,
+        weight_kg: profileFromAnswers.weightKg,
         sex: profileFromAnswers.sex,
         goal: profileFromAnswers.goal,
         level: profileFromAnswers.level,

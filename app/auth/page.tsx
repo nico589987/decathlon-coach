@@ -5,8 +5,8 @@ import { supabase, supabaseConfigured } from "../lib/supabaseClient";
 
 type Profile = {
   name: string;
-  ageRange: string;
-  weightRange: string;
+  birthDate: string;
+  weightKg: number;
   sex: string;
   goal: string;
   level: string;
@@ -15,8 +15,6 @@ type Profile = {
   injuries: string;
 };
 
-const ageOptions = ["16-20", "21-29", "30-39", "40-49", "50-59", "60+"];
-const weightOptions = ["<50 kg", "50-60 kg", "61-70 kg", "71-80 kg", "81-90 kg", "90+ kg"];
 const sexOptions = ["Homme", "Femme", "Autre"];
 
 export default function AuthPage() {
@@ -27,8 +25,8 @@ export default function AuthPage() {
   const [sessionEmail, setSessionEmail] = useState("");
   const [profile, setProfile] = useState<Profile>({
     name: "",
-    ageRange: "21-29",
-    weightRange: "61-70 kg",
+    birthDate: "",
+    weightKg: 70,
     sex: "Homme",
     goal: "Remise en forme",
     level: "Débutant",
@@ -67,8 +65,8 @@ export default function AuthPage() {
     const payload = {
       id: userId,
       name: profile.name,
-      age_range: profile.ageRange,
-      weight_range: profile.weightRange,
+      birth_date: profile.birthDate || null,
+      weight_kg: profile.weightKg,
       sex: profile.sex,
       goal: profile.goal,
       level: profile.level,
@@ -82,8 +80,8 @@ export default function AuthPage() {
       "user_profile",
       JSON.stringify({
         name: profile.name,
-        ageRange: profile.ageRange,
-        weightRange: profile.weightRange,
+        birthDate: profile.birthDate || "",
+        weightKg: profile.weightKg,
         sex: profile.sex,
         goal: profile.goal,
         level: profile.level,
@@ -136,7 +134,7 @@ export default function AuthPage() {
       const { data: profileRow } = await supabase
         .from("profiles")
         .select(
-          "name, age_range, weight_range, sex, goal, level, location, equipment, injuries, updated_at"
+          "name, birth_date, weight_kg, sex, goal, level, location, equipment, injuries, updated_at"
         )
         .eq("id", userId)
         .single();
@@ -145,8 +143,8 @@ export default function AuthPage() {
           "user_profile",
           JSON.stringify({
             name: profileRow.name || "",
-            ageRange: profileRow.age_range || "21-29",
-            weightRange: profileRow.weight_range || "61-70 kg",
+            birthDate: profileRow.birth_date || "",
+            weightKg: profileRow.weight_kg ?? 70,
             sex: profileRow.sex || "Homme",
             goal: profileRow.goal || "Remise en forme",
             level: profileRow.level || "Débutant",
@@ -291,44 +289,39 @@ export default function AuthPage() {
             </label>
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Âge
-                <select
-                  value={profile.ageRange}
+                Date de naissance
+                <input
+                  type="date"
+                  value={profile.birthDate}
                   onChange={(e) =>
-                    setProfile((prev) => ({ ...prev, ageRange: e.target.value }))
+                    setProfile((prev) => ({ ...prev, birthDate: e.target.value }))
                   }
                   style={{
                     padding: "8px 10px",
                     borderRadius: 10,
                     border: "1px solid #cbd5f5",
                   }}
-                >
-                  {ageOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
                 Poids
-                <select
-                  value={profile.weightRange}
+                <input
+                  type="number"
+                  min={30}
+                  max={200}
+                  value={profile.weightKg}
                   onChange={(e) =>
-                    setProfile((prev) => ({ ...prev, weightRange: e.target.value }))
+                    setProfile((prev) => ({
+                      ...prev,
+                      weightKg: Number(e.target.value || 0),
+                    }))
                   }
                   style={{
                     padding: "8px 10px",
                     borderRadius: 10,
                     border: "1px solid #cbd5f5",
                   }}
-                >
-                  {weightOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
                 Sexe

@@ -15,8 +15,8 @@ type Session = {
 
 type Profile = {
   name: string;
-  ageRange: string;
-  weightRange: string;
+  birthDate: string;
+  weightKg: number;
   sex: string;
   goal: string;
   level: string;
@@ -32,15 +32,6 @@ const FEEDBACK_LABELS: Record<NonNullable<Session["feedback"]>, string> = {
   trop_dur: "Trop dure",
 };
 
-const AGE_OPTIONS = ["16-20", "21-29", "30-39", "40-49", "50-59", "60+"];
-const WEIGHT_OPTIONS = [
-  "<50 kg",
-  "50-60 kg",
-  "61-70 kg",
-  "71-80 kg",
-  "81-90 kg",
-  "90+ kg",
-];
 const SEX_OPTIONS = ["Homme", "Femme", "Autre"];
 
 function parseDurationMinutes(title: string, content: string) {
@@ -83,10 +74,17 @@ function getSessionType(title: string, content: string) {
   return "mix";
 }
 
+function parseLegacyWeight(value?: string) {
+  if (!value) return null;
+  const match = value.match(/(\d+)\s*kg/);
+  if (!match) return null;
+  return Number(match[1]);
+}
+
 const defaultProfile: Profile = {
   name: "",
-  ageRange: "21-29",
-  weightRange: "61-70 kg",
+  birthDate: "",
+  weightKg: 70,
   sex: "Homme",
   goal: "Remise en forme",
   level: "Débutant",
@@ -117,7 +115,16 @@ export default function SuiviPage() {
     let localProfile: Profile | null = null;
     if (profileRaw) {
       const parsed = JSON.parse(profileRaw);
-      localProfile = { ...defaultProfile, ...parsed };
+      const legacyWeight = parseLegacyWeight(parsed.weightRange);
+      localProfile = {
+        ...defaultProfile,
+        ...parsed,
+        birthDate: parsed.birthDate || "",
+        weightKg:
+          typeof parsed.weightKg === "number"
+            ? parsed.weightKg
+            : legacyWeight ?? defaultProfile.weightKg,
+      };
       if (localProfile) setProfile(localProfile);
     }
     const localUpdatedRaw = localStorage.getItem(PROFILE_UPDATED_KEY);
@@ -128,7 +135,7 @@ export default function SuiviPage() {
       const { data: profileRow } = await supabase
         .from("profiles")
         .select(
-          "name, age_range, weight_range, sex, goal, level, location, equipment, injuries, updated_at"
+          "name, birth_date, weight_kg, sex, goal, level, location, equipment, injuries, updated_at"
         )
         .eq("id", userId)
         .maybeSingle();
@@ -136,8 +143,11 @@ export default function SuiviPage() {
       const nextProfile: Profile = {
         ...defaultProfile,
         name: profileRow.name || "",
-        ageRange: profileRow.age_range || defaultProfile.ageRange,
-        weightRange: profileRow.weight_range || defaultProfile.weightRange,
+        birthDate: profileRow.birth_date || defaultProfile.birthDate,
+        weightKg:
+          typeof profileRow.weight_kg === "number"
+            ? profileRow.weight_kg
+            : defaultProfile.weightKg,
         sex: profileRow.sex || defaultProfile.sex,
         goal: profileRow.goal || defaultProfile.goal,
         level: profileRow.level || defaultProfile.level,
@@ -157,8 +167,8 @@ export default function SuiviPage() {
         await supabase.from("profiles").upsert({
           id: userId,
           name: localProfile.name,
-          age_range: localProfile.ageRange,
-          weight_range: localProfile.weightRange,
+          birth_date: localProfile.birthDate || null,
+          weight_kg: localProfile.weightKg,
           sex: localProfile.sex,
           goal: localProfile.goal,
           level: localProfile.level,
@@ -391,8 +401,8 @@ export default function SuiviPage() {
       .upsert({
         id: sessionUserId,
         name: next.name,
-        age_range: next.ageRange,
-        weight_range: next.weightRange,
+        birth_date: next.birthDate || null,
+        weight_kg: next.weightKg,
         sex: next.sex,
         goal: next.goal,
         level: next.level,
@@ -1096,13 +1106,14 @@ export default function SuiviPage() {
                 />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                Âge
-                <select
-                  value={(profileDraft || profile).ageRange}
+                Date de naissance
+                <input
+                  type="date"
+                  value={(profileDraft || profile).birthDate}
                   onChange={(e) =>
                     setProfileDraft((prev) => ({
                       ...(prev || profile),
-                      ageRange: e.target.value,
+                      birthDate: e.target.value,
                     }))
                   }
                   style={{
@@ -1110,22 +1121,19 @@ export default function SuiviPage() {
                     borderRadius: 10,
                     border: "1px solid #cbd5f5",
                   }}
-                >
-                  {AGE_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
                 Poids
-                <select
-                  value={(profileDraft || profile).weightRange}
+                <input
+                  type="number"
+                  min={30}
+                  max={200}
+                  value={(profileDraft || profile).weightKg}
                   onChange={(e) =>
                     setProfileDraft((prev) => ({
                       ...(prev || profile),
-                      weightRange: e.target.value,
+                      weightKg: Number(e.target.value || 0),
                     }))
                   }
                   style={{
@@ -1133,13 +1141,7 @@ export default function SuiviPage() {
                     borderRadius: 10,
                     border: "1px solid #cbd5f5",
                   }}
-                >
-                  {WEIGHT_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
               <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
                 Sexe
@@ -1378,10 +1380,10 @@ export default function SuiviPage() {
                 Prénom : <strong>{profile.name || "—"}</strong>
               </div>
               <div>
-                Âge : <strong>{profile.ageRange}</strong>
+                Date de naissance : <strong>{profile.birthDate || "—"}</strong>
               </div>
               <div>
-                Poids : <strong>{profile.weightRange}</strong>
+                Poids : <strong>{profile.weightKg ? `${profile.weightKg} kg` : "—"}</strong>
               </div>
               <div>
                 Sexe : <strong>{profile.sex}</strong>
